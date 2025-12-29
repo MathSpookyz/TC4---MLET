@@ -1,45 +1,47 @@
+import logging
 from scr.extract.yahoo_extractor import extract_prices
 from scr.transform.price_transformer import tratar_prices
 from scr.load.parquet_loader import (
     save_raw_parquet,
     save_processed_parquet,
-    parquet_exists
 )
 
-RAW_PATH = "data/raw/prices_raw.parquet"
-PROCESSED_PATH = "data/processed/prices/"
+RAW_PATH = "s3://teste-s3-dados-tickers/raw/prices_raw.parquet"
+PROCESSED_PATH = "s3://teste-s3-dados-tickers/processed/prices/"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 def main():
-    tickers = ["PETR4.SA", "VALE3.SA", "ITUB4.SA"]
+    logger.info("Início do pipeline")
+
+    tickers_input = input(
+        "Informe o(s) ticker(s) separados por vírgula (ex: PETR4.SA,VALE3.SA): "
+    )
+
+    tickers = [t.strip().upper() for t in tickers_input.split(",")]
+
     start_date = "2019-01-01"
     end_date = "2024-01-01"
 
-    # =========================
-    # RAW (Cache de extração)
-    # =========================
-    if not parquet_exists(RAW_PATH):
-        print("🔄 Extraindo dados do Yahoo Finance...")
-        df_raw = extract_prices(tickers, start_date, end_date)
-        save_raw_parquet(df_raw, RAW_PATH)
-    else:
-        print("✅ Cache RAW encontrado")
+    logger.info(f"Tickers selecionados: {tickers}")
 
-        df_raw = extract_prices(tickers, start_date, end_date)
-        # (em produção você leria o parquet, aqui mantemos simples)
+    logger.info("Extraindo dados do Yahoo Finance")
+    df_raw = extract_prices(tickers, start_date, end_date)
 
-    # =========================
-    # TRANSFORM
-    # =========================
-    print("⚙️ Tratando dados...")
+    logger.info("Salvando cache RAW no S3")
+    save_raw_parquet(df_raw, RAW_PATH)
+
+    logger.info("Tratando dados")
     df_processed = tratar_prices(df_raw)
 
-    # =========================
-    # LOAD (Cache escalável)
-    # =========================
-    print("💾 Salvando dados tratados em Parquet...")
+    logger.info("Salvando dados tratados em Parquet no S3")
     save_processed_parquet(df_processed, PROCESSED_PATH)
 
-    print("🚀 Pipeline finalizado com sucesso!")
+    logger.info("Fim do pipeline com sucesso")
 
 if __name__ == "__main__":
     main()

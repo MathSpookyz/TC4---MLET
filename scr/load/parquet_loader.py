@@ -1,24 +1,34 @@
-from pathlib import Path
+import boto3
+import io
 import pandas as pd
 
-def save_raw_parquet(df, path):
-    """
-    Salva camada RAW (sem tratamento)
-    """
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(path, engine="pyarrow")
+s3 = boto3.client("s3")
 
-def save_processed_parquet(df, base_path):
-    """
-    Salva camada PROCESSED particionada por ticker
-    """
-    Path(base_path).mkdir(parents=True, exist_ok=True)
-    df.to_parquet(
-        base_path,
-        engine="pyarrow",
-        partition_cols=["ticker"],
-        index=False
+def save_raw_parquet(df: pd.DataFrame, s3_path: str):
+    bucket, key = _parse_s3_path(s3_path)
+
+    buffer = io.BytesIO()
+    df.to_parquet(buffer, index=True)
+    buffer.seek(0)
+
+    s3.put_object(Bucket=bucket, Key=key, Body=buffer.getvalue())
+
+
+def save_processed_parquet(df: pd.DataFrame, s3_prefix: str):
+    bucket, prefix = _parse_s3_path(s3_prefix)
+
+    buffer = io.BytesIO()
+    df.to_parquet(buffer, index=True)
+    buffer.seek(0)
+
+    s3.put_object(
+        Bucket=bucket,
+        Key=f"{prefix}prices_processed.parquet",
+        Body=buffer.getvalue()
     )
 
-def parquet_exists(path):
-    return Path(path).exists()
+
+def _parse_s3_path(s3_path: str):
+    s3_path = s3_path.replace("s3://", "")
+    bucket, key = s3_path.split("/", 1)
+    return bucket, key
