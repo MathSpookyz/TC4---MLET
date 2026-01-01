@@ -1,7 +1,3 @@
-
-
-
-
 # API de Previsão de Preços de Ações
 
 Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado e API REST.
@@ -65,6 +61,18 @@ graph TD
 ```
 
 ## Estrutura do Projeto
+
+### Desenho de arquitetura em núvem
+
+![Arquitetura de sistema do Projeto](arquitetur-projeto.png)
+
+O projeto consiste de:
+- Uma API hospedada na AWS para gestão dos dados, scrappe de novos dados e recepção de requests.
+- Um bucket S3 para armazenamento e busca de dados
+
+Temos uma chamada externa para o Yahoo Finance para busca de dados atrelados aos Tickers de ações requisitadas.
+
+Toda a comunicação é feita via REST no protocolo HTTP com o nosso sistema.
 
 ### Módulos Principais
 
@@ -318,6 +326,3 @@ Tempo médio de resposta:
 ## Limitações
 
 - Previsões recursivas têm acurácia decrescente com o número de dias
-- Modelo treinado com dados históricos específicos
-- Requer conexão com internet para buscar dados do Yahoo Finance
-- S3 opcional, mas recomendado para produção
