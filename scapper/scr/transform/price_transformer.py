@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def tratar_prices(df_raw):
+def normalize_prices(df_raw):
     """
     Normaliza, trata e cria features financeiras
     """
