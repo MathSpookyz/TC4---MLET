@@ -12,6 +12,7 @@ numpy==2.4.0
 # Data Processing
 pandas==2.3.3
 scipy==1.16.3
+pyarrow==19.0.0
 
 # Data Extraction
 yfinance==1.0
