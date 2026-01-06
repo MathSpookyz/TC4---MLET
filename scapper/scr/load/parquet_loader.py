@@ -39,8 +39,12 @@ def _parse_s3_path(s3_path: str):
     return bucket, key
 
 
-def load_ticker_local(ticker: str, data_path: str = "scapper/data/processed/prices", 
-                      s3_path: str = "s3://teste-s3-dados-tickers/processed/prices/") -> pd.DataFrame:
+def load_ticker_local(
+    ticker: str,
+    data_path: str = "scapper/data/processed/prices", 
+    s3_path: str = "s3://fiap-tech-challenge-4/processed/prices/"
+) -> pd.DataFrame:
+
     ticker_path = Path(data_path) / f"ticker={ticker}"
     
     if ticker_path.exists():

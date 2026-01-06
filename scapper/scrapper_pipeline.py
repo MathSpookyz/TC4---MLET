@@ -11,8 +11,8 @@ from scr.load.parquet_loader import (
 )
 
 
-RAW_PATH = "s3://teste-s3-dados-tickers/raw/prices_raw.parquet"
-PROCESSED_PATH = "s3://teste-s3-dados-tickers/processed/prices/"
+RAW_PATH = "s3://fiap-tech-challenge-4/raw/prices_raw.parquet"
+PROCESSED_PATH = "s3://fiap-tech-challenge-4/processed/prices/"
 
 logging.basicConfig(
     level=logging.INFO,
