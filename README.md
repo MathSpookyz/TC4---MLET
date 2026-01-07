@@ -158,35 +158,71 @@ O endpoint `/predict-custom` permite treinar um modelo temporário com seus pró
 
 #### Exemplo de Uso
 
-**Recomendado para Windows PowerShell:**
-```powershell
-# Usar arquivo JSON (evita problemas com formatação)
-curl -X POST http://localhost:8000/predict-custom -H "Content-Type: application/json" -d "@example_custom_data.json"
+```bash
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker_name": "TESTE",
+    "days": 5,
+    "historical_data": [
+      {"date": "2024-01-01", "close": 100.5, "volume": 1000000},
+      {"date": "2024-01-02", "close": 101.2, "volume": 1100000},
+      ... (mínimo 30 pontos)
+    ]
+  }'
 ```
 
-**Para Linux/Mac/Git Bash:**
+#### Usando Arquivo JSON
+
 ```bash
-# Usar arquivo JSON (mais simples)
+# Usar dados do arquivo de exemplo incluído no projeto
 curl -X POST http://localhost:8000/predict-custom \
   -H "Content-Type: application/json" \
   -d @example_custom_data.json
-
-# OU com heredoc (dados inline)
-curl -X POST http://localhost:8000/predict-custom \
-  -H "Content-Type: application/json" \
-  -d @- << 'EOF'
-{
-  "ticker_name": "TESTE",
-  "days": 5,
-  "historical_data": [
-    {"date": "2024-01-01", "close": 100.5, "volume": 1000000},
-    {"date": "2024-01-02", "close": 101.2, "volume": 1100000}
-  ]
-}
-EOF
 ```
 
-**Nota:** O arquivo `example_custom_data.json` incluso no projeto já tem 45 pontos de dados prontos para teste.
+#### Teste Rápido
+
+```bash
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker_name": "TESTE_RAPIDO",
+    "days": 3,
+    "historical_data": [
+      {"date": "2024-01-01", "close": 100.00, "volume": 1000000},
+      {"date": "2024-01-02", "close": 101.50, "volume": 1050000},
+      {"date": "2024-01-03", "close": 102.30, "volume": 1100000},
+      {"date": "2024-01-04", "close": 101.80, "volume": 1080000},
+      {"date": "2024-01-05", "close": 103.20, "volume": 1120000},
+      {"date": "2024-01-08", "close": 104.50, "volume": 1150000},
+      {"date": "2024-01-09", "close": 104.00, "volume": 1130000},
+      {"date": "2024-01-10", "close": 105.30, "volume": 1180000},
+      {"date": "2024-01-11", "close": 106.20, "volume": 1200000},
+      {"date": "2024-01-12", "close": 105.80, "volume": 1190000},
+      {"date": "2024-01-15", "close": 107.50, "volume": 1220000},
+      {"date": "2024-01-16", "close": 108.10, "volume": 1250000},
+      {"date": "2024-01-17", "close": 108.90, "volume": 1260000},
+      {"date": "2024-01-18", "close": 108.30, "volume": 1240000},
+      {"date": "2024-01-19", "close": 109.80, "volume": 1280000},
+      {"date": "2024-01-22", "close": 110.50, "volume": 1300000},
+      {"date": "2024-01-23", "close": 110.20, "volume": 1290000},
+      {"date": "2024-01-24", "close": 111.60, "volume": 1320000},
+      {"date": "2024-01-25", "close": 112.30, "volume": 1350000},
+      {"date": "2024-01-26", "close": 111.90, "volume": 1340000},
+      {"date": "2024-01-29", "close": 113.20, "volume": 1370000},
+      {"date": "2024-01-30", "close": 114.00, "volume": 1400000},
+      {"date": "2024-01-31", "close": 113.60, "volume": 1390000},
+      {"date": "2024-02-01", "close": 114.80, "volume": 1420000},
+      {"date": "2024-02-02", "close": 115.50, "volume": 1450000},
+      {"date": "2024-02-05", "close": 115.20, "volume": 1440000},
+      {"date": "2024-02-06", "close": 116.30, "volume": 1470000},
+      {"date": "2024-02-07", "close": 117.00, "volume": 1490000},
+      {"date": "2024-02-08", "close": 116.70, "volume": 1480000},
+      {"date": "2024-02-09", "close": 117.90, "volume": 1510000}
+    ]
+  }'
+```
 
 **Resposta esperada:**
 ```json
