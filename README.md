@@ -1,328 +1,657 @@
 # API de Previsão de Preços de Ações
 
-Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado e API REST.
+Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado, API REST e monitoramento MLFlow.
 
-## Visão Geral
+## 🚀 Características Principais
 
-API que fornece previsões de preços de ações da bolsa brasileira usando machine learning. O sistema busca dados históricos do Yahoo Finance, aplica transformações e features financeiras, e utiliza um modelo LSTM treinado para prever preços futuros.
+- ✅ **Multi-ticker**: Suporta qualquer ação da bolsa brasileira
+- ✅ **Treinamento automático**: Treina modelos sob demanda quando necessário
+- ✅ **Armazenamento híbrido**: Local ou S3 via variável de ambiente
+- ✅ **MLFlow**: Monitoramento completo de experimentos
+- ✅ **Dados personalizados**: Endpoint para treinar/prever com seus próprios dados
+- ✅ **Logs detalhados**: Rastreamento completo de operações
+- ✅ **Cache inteligente**: Modelos permanecem em memória após carregamento
 
-## Arquitetura
+## 📋 Requisitos
 
-```mermaid
-graph TD
-    classDef storage fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef compute fill:#bbf,stroke:#333,stroke-width:2px;
-    classDef external fill:#ddd,stroke:#333,stroke-width:2px;
-    classDef logic fill:#ff9,stroke:#333,stroke-width:2px;
-
-    Client((Usuário / Client))
-    WebGlobe[Internet / Bolsa]:::external
-
-    subgraph "Setup Inicial"
-        InitScrape[Scraper Inicial<br/>Top 10 Ações]:::logic
-        InitScrape -- Busca Dados --> WebGlobe
-    end
-
-    S3[("AWS S3 Bucket<br/>(Histórico de Ações)")]:::storage
-    InitScrape -- Salva Dados --> S3
-
-    subgraph "Compute Layer (EC2 / ECS / LightSail)"
-        Docker[Container Docker]:::compute
-        
-        subgraph "API & Modelo"
-            API[API Gateway / Endpoint]:::logic
-            Router{Rota Solicitada?}:::logic
-            
-            Model[Modelo ML / LSTM]:::logic
-            
-            Scraper[Scraper On-Demand]:::logic
-        end
-    end
-
-    Client -- 1. Requisição HTTP --> API
-    API --> Router
-
-    Router -- "POST /predict (Dados JSON)" --> Model
-    
-    Router -- "GET /predict/{ticker}" --> CheckS3{Dados no S3?}:::logic
-    
-    CheckS3 -- Busca Dados --> S3
-    
-    S3 -- "Sim (Dados Retornados)" --> Model
-    
-    S3 -. "Não (404 / Missing)" .-> Scraper
-    Scraper -- Crawl Ticker Específico --> WebGlobe
-    WebGlobe -- Retorna Dados --> Scraper
-    Scraper -- Salva para Próxima vez --> S3
-    Scraper -- Envia Dados Recentes --> Model
-
-    Model -- Gera Previsão --> API
-    API -- Response JSON --> Client
-```
-
-## Estrutura do Projeto
-
-### Desenho de arquitetura em núvem
-
-![Arquitetura de sistema do Projeto](arquitetur-projeto.png)
-
-O projeto consiste de:
-- Uma API hospedada na AWS para gestão dos dados, scrappe de novos dados e recepção de requests.
-- Um bucket S3 para armazenamento e busca de dados
-
-Temos uma chamada externa para o Yahoo Finance para busca de dados atrelados aos Tickers de ações requisitadas.
-
-Toda a comunicação é feita via REST no protocolo HTTP com o nosso sistema.
-
-### Módulos Principais
-
-**scapper/scr/extract/yahoo_extractor.py** - Extração de dados do Yahoo Finance
-
-**scapper/scr/transform/price_transformer.py** - Transformação e feature engineering dos dados
-- Normalização de colunas
-- Criação de features financeiras: retorno diário, médias móveis (20/50 dias), volatilidade
-- Limpeza e validação de dados
-
-**scapper/scr/load/parquet_loader.py** - Gerenciamento de persistência (local + S3)
-- Sistema híbrido de cache: busca local primeiro, depois S3
-- Salvamento de dados brutos e processados
-
-**scapper/scrapper_pipeline.py** - Orquestração do pipeline ETL
-- Coordena extração, transformação e carregamento
-- Gerencia cache inteligente de dados
-
-**model_executor.py** - Modelo LSTM de previsão
-- Modelo com 2 camadas LSTM e 64 neurônios
-- Entrada: close + volume (últimos 30 dias)
-- Saída: previsão de preço
-- Suporta previsão múltipla (recursiva)
-
-**api.py** - API REST usando FastAPI
-- Endpoints HTTP para previsões
-- Validação de dados com Pydantic
-- Logging detalhado
-
-## Instalação
-
-### Requisitos
 - Python 3.11+
 - Docker (opcional)
 
-### Instalação Local
+## ⚡ Início Rápido
+
+### 1. Instalar Dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Executar API Localmente
+### 2. Configurar Ambiente (Opcional)
+
+Crie `.env` na raiz do projeto:
 
 ```bash
-python -m uvicorn api:app --host 0.0.0.0 --port 8000
+# Armazenamento (padrão: local)
+STORAGE_TYPE=local
+
+# Para usar S3:
+# STORAGE_TYPE=s3
+# S3_BUCKET=seu-bucket
+# AWS_ACCESS_KEY_ID=sua-chave
+# AWS_SECRET_ACCESS_KEY=seu-secret
+
+# MLFlow (padrão: local)
+MLFLOW_TRACKING_URI=file:./mlruns
 ```
 
-ou
+### 3. Iniciar API
 
 ```bash
 python api.py
 ```
 
-A API estará disponível em: http://localhost:8000
+Acesse: http://localhost:8000/docs
 
-Documentação interativa: http://localhost:8000/docs
+## 📊 Como Usar
 
-## Uso da API
+### Treinar um Modelo
 
-### Endpoints Disponíveis
+#### Via Linha de Comando
 
-**GET /** - Informações da API e endpoints disponíveis
-
-**GET /health** - Health check do serviço
-
-**GET /predict/{ticker}** - Previsão de preços para um ticker específico
-
-Query parameters opcionais:
-- days: quantidade de dias para prever (padrão: 1)
-- start_date: data inicial para busca de dados (formato: YYYY-MM-DD)
-- end_date: data final para busca de dados (formato: YYYY-MM-DD)
-
-**POST /predict** - Previsão com configuração completa via JSON
-
-### Exemplos de Requisição
-
-Previsão simples de 1 dia:
 ```bash
-curl http://localhost:8000/predict/PETR4.SA
+python model/model_training.py
 ```
 
-Previsão de 7 dias:
+O sistema solicitará o ticker (ex: PETR4.SA, VALE3.SA, ITUB4.SA)
+
+#### Via API
+
 ```bash
+# Treinar modelo via API
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "VALE3.SA", "start_date": "2020-01-01"}'
+```
+
+### Fazer Previsões
+
+#### Previsão Simples (com treinamento automático)
+
+```bash
+# O sistema treina automaticamente se o modelo não existir
 curl "http://localhost:8000/predict/PETR4.SA?days=7"
 ```
 
-Previsão de 30 dias com período específico:
+#### Via API - GET
+
 ```bash
-curl "http://localhost:8000/predict/VALE3.SA?days=30&start_date=2023-01-01&end_date=2024-12-31"
+# Previsão de 1 dia para VALE3.SA
+curl http://localhost:8000/predict/VALE3.SA
+
+# Previsão de 7 dias
+curl "http://localhost:8000/predict/VALE3.SA?days=7"
+
+# Com período específico
+curl "http://localhost:8000/predict/ITUB4.SA?days=5&start_date=2023-01-01&end_date=2024-12-31"
 ```
 
-Requisição POST com JSON:
+#### Via API - POST
+
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d '{"ticker": "ITUB4.SA", "start_date": "2023-01-01", "end_date": "2024-12-31", "days": 5}'
+  -d '{
+    "ticker": "PETR4.SA",
+    "days": 30,
+    "start_date": "2023-01-01",
+    "end_date": "2024-12-31"
+  }'
 ```
 
-### Formato da Resposta
+### Estrutura de Resposta
 
-A API retorna um JSON com a seguinte estrutura:
-- ticker: código da ação
-- predictions: array com previsões para cada dia solicitado
-- days: quantidade de dias previstos
-- last_known_price: último preço real conhecido
-- currency: moeda (BRL)
+#### Treinamento
 
-## Docker
-
-### Build da Imagem
-
-```bash
-docker build -t stock-prediction-api .
+```json
+{
+  "ticker": "VALE3.SA",
+  "status": "success",
+  "message": "Modelo treinado com sucesso para VALE3.SA",
+  "rmse": 2.45,
+  "next_prediction": 65.32,
+  "trained_at": "2026-01-07T10:30:00.000000"
+}
 ```
 
-### Executar Container
+#### Previsão
 
-```bash
-docker run -d -p 8000:8000 --name stock-api stock-prediction-api
+```json
+{
+  "ticker": "VALE3.SA",
+  "predictions": [65.32, 65.87, 66.15],
+  "days": 3,
+  "last_known_price": 64.80,
+  "currency": "BRL"
+}
 ```
 
-### Verificar Logs
+### Usar Dados Personalizados
 
-```bash
-docker logs -f stock-api
+O endpoint `/predict-custom` permite treinar um modelo temporário com seus próprios dados históricos. Ideal para:
+
+- Testar estratégias com dados históricos específicos
+- Fazer previsões com dados sintéticos ou simulados
+- Validar o modelo sem interferir com modelos salvos
+- Treinar e prever sem dependência de tickers da bolsa
+
+#### Características do Endpoint Custom
+
+✅ **Isolado**: Não salva o modelo no disco  
+✅ **Temporário**: Modelo existe apenas durante a requisição  
+✅ **Flexível**: Aceita qualquer conjunto de dados históricos  
+✅ **Completo**: Retorna métricas de treinamento (RMSE)
+
+#### Requisitos de Dados
+
+- **Mínimo**: 30 pontos históricos
+- **Recomendado**: 60+ pontos para melhor acurácia
+- **Formato**: JSON com date, close e volume
+
+#### Exemplo de Uso
+
+**Recomendado para Windows PowerShell:**
+```powershell
+# Usar arquivo JSON (evita problemas com formatação)
+curl -X POST http://localhost:8000/predict-custom -H "Content-Type: application/json" -d "@example_custom_data.json"
 ```
 
-### Parar Container
-
+**Para Linux/Mac/Git Bash:**
 ```bash
-docker stop stock-api
-docker rm stock-api
+# Usar arquivo JSON (mais simples)
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d @example_custom_data.json
+
+# OU com heredoc (dados inline)
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d @- << 'EOF'
+{
+  "ticker_name": "TESTE",
+  "days": 5,
+  "historical_data": [
+    {"date": "2024-01-01", "close": 100.5, "volume": 1000000},
+    {"date": "2024-01-02", "close": 101.2, "volume": 1100000}
+  ]
+}
+EOF
 ```
 
-## Docker Compose (Recomendado)
+**Nota:** O arquivo `example_custom_data.json` incluso no projeto já tem 45 pontos de dados prontos para teste.
 
-### Iniciar Serviços
+**Resposta esperada:**
+```json
+{
+  "ticker_name": "TESTE_RAPIDO",
+  "predictions": [118.45, 119.12, 119.78],
+  "days": 3,
+  "last_known_price": 117.90,
+  "rmse": 0.87,
+  "training_samples": 0,
+  "message": "Modelo treinado e previsão realizada com sucesso usando 30 pontos históricos"
+}
+```
+
+#### Estrutura dos Dados
+
+Cada ponto histórico deve conter:
+
+```json
+{
+  "date": "YYYY-MM-DD",
+  "close": float,
+  "volume": int
+}
+```
+
+#### Parâmetros
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|-------------|-----------|
+| `ticker_name` | string | Não | Nome para identificação (padrão: "CUSTOM") |
+| `days` | integer | Não | Dias para prever (padrão: 1) |
+| `historical_data` | array | Sim | Lista de pontos históricos (mínimo 30) |
+
+#### Resposta do Endpoint Custom
+
+```json
+{
+  "ticker_name": "MINHA_ACAO",
+  "predictions": [102.45, 103.12, 103.78, 104.21, 104.67],
+  "days": 5,
+  "last_known_price": 101.80,
+  "rmse": 1.23,
+  "training_samples": 120,
+  "message": "Modelo treinado e previsão realizada com sucesso usando 150 pontos históricos"
+}
+```
+
+#### Campos da Resposta
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `ticker_name` | string | Nome fornecido na requisição |
+| `predictions` | array | Lista de previsões (um valor por dia) |
+| `days` | integer | Número de dias previstos |
+| `last_known_price` | float | Último preço real conhecido |
+| `rmse` | float | Root Mean Square Error do modelo |
+| `training_samples` | integer | Número de sequências usadas no treino |
+| `message` | string | Mensagem descritiva |
+
+#### Erros Comuns
+
+**400 - Dados Insuficientes**
+```json
+{"detail": "Mínimo de 30 pontos históricos necessários. Fornecidos: 20"}
+```
+Solução: Fornecer pelo menos 30 pontos de dados históricos.
+
+**400 - Formato Inválido**
+```json
+{"detail": "Campo 'close' inválido no ponto 5"}
+```
+Solução: Verificar se todos os pontos têm date, close e volume válidos.
+
+#### Casos de Uso do Endpoint Custom
+
+1. **Validação de Estratégias**: Teste sua estratégia de trading com dados históricos específicos
+2. **Testes com Dados Sintéticos**: Valide o modelo com dados gerados
+3. **Análise What-If**: "E se os preços tivessem evoluído diferente?"
+4. **Backtesting**: Teste o modelo com períodos históricos específicos
+
+#### Performance do Endpoint Custom
+
+| Métrica | Valor Típico |
+|---------|--------------|
+| Tempo (50 pontos) | 10-20 segundos |
+| Tempo (100 pontos) | 20-40 segundos |
+| Tempo (200 pontos) | 40-80 segundos |
+| Memória utilizada | ~500 MB |
+
+## 🎯 Endpoints da API
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/` | Informações da API |
+| GET | `/health` | Health check |
+| GET | `/predict/{ticker}` | Previsão para ticker (params: days, start_date, end_date) |
+| POST | `/predict` | Previsão com JSON completo |
+| POST | `/train` | Treinar modelo para ticker |
+| POST | `/predict-custom` | Treinar/prever com dados personalizados (isolado) |
+
+### Comparação de Endpoints
+
+| Característica | `/predict/{ticker}` | `/train` | `/predict-custom` |
+|----------------|---------------------|----------|-------------------|
+| Usa dados do Yahoo Finance | ✅ | ✅ | ❌ |
+| Salva modelo | ❌ | ✅ | ❌ |
+| Dados personalizados | ❌ | ❌ | ✅ |
+| Cache de modelos | ✅ | ✅ | ❌ |
+| Retorna RMSE | ❌ | ✅ | ✅ |
+| Isolado | ❌ | ❌ | ✅ |
+
+## 🏗️ Arquitetura do Sistema
+
+### Componentes Principais
+
+**Pipeline ETL**
+- `yahoo_extractor.py` - Extração de dados do Yahoo Finance
+- `price_transformer.py` - Feature engineering (médias móveis, volatilidade, retornos)
+- `parquet_loader.py` - Armazenamento híbrido (local/S3)
+- `scrapper_pipeline.py` - Orquestração do pipeline
+
+**Machine Learning**
+- `model_training.py` - Treinamento LSTM com MLFlow
+- `model_executor.py` - Carregamento e inferência de modelos
+
+**API REST**
+- `api.py` - FastAPI com endpoints de previsão e treinamento
+
+### Fluxo de Dados
+
+```
+Cliente → API → Verifica Cache Local → Se não existe → Yahoo Finance
+                     ↓                                        ↓
+                 Model LSTM ← Dados Processados ← Feature Engineering
+                     ↓
+                 Previsão → Resposta JSON → Cliente
+```
+
+### Modelo LSTM
+
+- **Arquitetura**: 2 camadas LSTM, 64 neurônios por camada
+- **Features**: Preço de fechamento + Volume
+- **Janela temporal**: 30 dias
+- **Normalização**: MinMaxScaler
+- **Armazenamento**: `export/lstm_model_{TICKER}.pth`
+
+## 📦 Estrutura do Projeto
+
+```
+├── api.py                          # API REST FastAPI
+├── model_executor.py               # Inferência de modelos
+├── requirements.txt                # Dependências Python
+├── docker-compose.yml              # Orquestração Docker
+├── model/
+│   └── model_training.py          # Treinamento LSTM + MLFlow
+├── scrapper/
+│   ├── scrapper_pipeline.py       # Orquestração ETL
+│   ├── scr/
+│   │   ├── extract/
+│   │   │   └── yahoo_extractor.py # Extração Yahoo Finance
+│   │   ├── transform/
+│   │   │   └── price_transformer.py # Feature engineering
+│   │   └── load/
+│   │       └── parquet_loader.py  # Armazenamento local/S3
+│   └── data/                      # Dados locais (raw + processed)
+└── export/                        # Modelos treinados e scalers
+```
+
+## 🐳 Docker
+
+### Executar com Docker Compose (Recomendado)
 
 ```bash
+# Iniciar
 docker-compose up -d
-```
 
-### Ver Logs em Tempo Real
-
-```bash
+# Ver logs
 docker-compose logs -f
-```
 
-### Parar Serviços
-
-```bash
+# Parar
 docker-compose down
 ```
 
-### Rebuild e Restart
+### Docker Standalone
 
 ```bash
-docker-compose up -d --build
+# Build
+docker build -t stock-api .
+
+# Run
+docker run -d -p 8000:8000 stock-api
 ```
 
-## Funcionamento do Sistema
+## 📈 MLFlow - Monitoramento de Experimentos
 
-### Fluxo de Previsão
+O sistema usa MLFlow para rastrear todos os treinamentos.
 
-1. Cliente faz requisição HTTP com ticker da ação
-2. Sistema verifica cache local, depois S3
-3. Se dados não existirem, extrai do Yahoo Finance
-4. Aplica transformações e feature engineering
-5. Carrega modelo LSTM treinado
-6. Gera previsões (recursivas para múltiplos dias)
-7. Retorna JSON com previsões
-
-### Cache Inteligente
-
-O sistema implementa cache em duas camadas:
-- **Local**: scapper/data/processed/prices/ticker=XXX/
-- **S3**: s3://bucket/processed/prices/ticker=XXX/
-
-Isso minimiza chamadas ao Yahoo Finance e melhora performance.
-
-### Previsão Recursiva
-
-Para previsões de múltiplos dias:
-- Usa últimos 30 registros históricos
-- Prediz dia seguinte
-- Adiciona previsão aos dados
-- Repete processo para próximos dias
-
-## Configuração AWS S3 (Opcional)
-
-Para habilitar persistência em S3, configure as variáveis de ambiente:
+### Visualizar Experimentos
 
 ```bash
-export AWS_ACCESS_KEY_ID=sua_chave
-export AWS_SECRET_ACCESS_KEY=sua_secret
-export AWS_DEFAULT_REGION=us-east-1
+# Iniciar MLFlow UI
+mlflow ui
+
+# Acessar em: http://localhost:5000
 ```
 
-Ou adicione ao docker-compose.yml na seção environment.
+**Métricas rastreadas:**
+- **Parâmetros**: ticker, datas, épocas, learning rate, batch size
+- **Métricas**: RMSE, loss por época, última previsão
+- **Artefatos**: Modelos salvos (`.pth`), scalers (`.save`)
+- **Tags**: versão, timestamp, duração do treinamento
 
-## Tickers Suportados
+### Comparar Modelos
 
-O sistema suporta qualquer ticker disponível no Yahoo Finance, incluindo:
-- PETR4.SA (Petrobras)
-- VALE3.SA (Vale)
-- ITUB4.SA (Itaú)
-- BBDC4.SA (Bradesco)
-- MGLU3.SA (Magazine Luiza)
+No MLFlow UI você pode:
+- Comparar RMSE entre diferentes tickers
+- Ver evolução do loss durante treinamento
+- Analisar distribuição de previsões
+- Baixar modelos de versões anteriores
+- Filtrar experimentos por parâmetros
+- Exportar resultados para análise
 
-Formato: CODIGO.SA para ações brasileiras
+## 💡 Exemplos Práticos
 
-## Modelo de Machine Learning
+### Exemplo 1: Treinar Múltiplos Tickers
 
-**Arquitetura**: LSTM (Long Short-Term Memory)
-**Camadas**: 2 camadas com 64 neurônios cada
-**Features de entrada**: close (preço de fechamento) e volume
-**Janela temporal**: 30 dias
-**Normalização**: MinMaxScaler para features e target
-
-## Monitoramento
-
-Health check endpoint:
 ```bash
-curl http://localhost:8000/health
+# Treinar PETR4
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA"}'
+
+# Treinar VALE3
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "VALE3.SA"}'
+
+# Treinar ITUB4
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "ITUB4.SA"}'
 ```
 
-Logs detalhados de todas as operações:
-- Requisições recebidas
-- Busca de dados (local/S3/Yahoo)
-- Execução de previsões
-- Erros e exceções
+### Exemplo 2: Previsões para Múltiplos Tickers
 
-## Troubleshooting
+```bash
+# PETR4 - 7 dias
+curl "http://localhost:8000/predict/PETR4.SA?days=7"
 
-**Erro: ModuleNotFoundError** - Verifique se todas as dependências foram instaladas
+# VALE3 - 30 dias
+curl "http://localhost:8000/predict/VALE3.SA?days=30"
 
-**Erro: Ticker não encontrado** - Verifique o formato do ticker (ex: PETR4.SA)
+# ITUB4 - 14 dias
+curl "http://localhost:8000/predict/ITUB4.SA?days=14"
+```
 
-**Erro: Dados insuficientes** - O modelo requer pelo menos 30 dias de dados históricos
+### Exemplo 3: Dados Personalizados
 
-**API não responde** - Verifique se a porta 8000 está disponível e o serviço está rodando
+```bash
+# Criar arquivo com dados históricos
+cat > custom_data.json << 'EOF'
+{
+  "ticker_name": "TESTE_ACAO",
+  "days": 7,
+  "historical_data": [
+    {"date": "2024-01-01", "close": 50.00, "volume": 1000000},
+    {"date": "2024-01-02", "close": 50.50, "volume": 1050000},
+    {"date": "2024-01-03", "close": 51.20, "volume": 1100000},
+    ... (mínimo 30 pontos)
+  ]
+}
+EOF
 
-## Performance
+# Fazer previsão com dados personalizados
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d @custom_data.json
+```
 
-Tamanho estimado da imagem Docker: 2-3GB (PyTorch e dependências ML)
+**Vantagens do endpoint custom:**
+- Não precisa ter o ticker na bolsa
+- Útil para testes com dados sintéticos
+- Não interfere com modelos salvos
+- Permite validação de estratégias com dados históricos específicos
 
-Tempo médio de resposta:
-- Com cache: 2-5 segundos
-- Sem cache (primeira requisição): 10-20 segundos
+Veja também:
+- [example_custom_prediction.py](example_custom_prediction.py) - Script completo de exemplo
+- [example_custom_data.json](example_custom_data.json) - Dados de exemplo prontos (45 pontos históricos)
 
-## Limitações
+**Scripts incluídos:**
+```bash
+# Script completo com geração automática de dados
+python example_custom_prediction.py
 
-- Previsões recursivas têm acurácia decrescente com o número de dias
+# Usar dados do arquivo JSON de exemplo
+curl -X POST http://localhost:8000/predict-custom \
+  -H "Content-Type: application/json" \
+  -d @example_custom_data.json
+```
+
+### Exemplo 4: Treinamento Automático
+
+```bash
+# Execute o script de demonstração
+python example_auto_train.py
+```
+
+### Exemplo 5: Script Python para Múltiplos Tickers
+
+```python
+import requests
+
+tickers = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA']
+for ticker in tickers:
+    r = requests.post('http://localhost:8000/train', 
+                      json={'ticker': ticker})
+    print(f'{ticker}: {r.json()}')
+```
+
+## 🔧 Troubleshooting
+
+### Erro: "Modelo não encontrado"
+- **Solução Automática**: O sistema agora treina automaticamente modelos inexistentes
+- **Manual**: Você ainda pode treinar explicitamente com `POST /train` se preferir
+
+### Erro: "Dados insuficientes"
+- **Solução**: Ajustar `start_date` para obter mais histórico (mínimo 30 registros)
+
+### Erro: "Ticker não encontrado"
+- **Solução**: Verificar se o ticker está correto (ex: PETR4.SA, não PETR4)
+
+### Erro: "Mínimo de 30 pontos históricos necessários"
+- **Solução**: Para `/predict-custom`, fornecer pelo menos 30 pontos de dados históricos
+- **Recomendação**: Use 60+ pontos para melhor acurácia do modelo
+
+### Treinamento Muito Lento (Endpoint Custom)
+- **Solução 1**: Reduza o número de pontos históricos
+- **Solução 2**: Verifique recursos do servidor (CPU/RAM)
+- **Solução 3**: Aumente o timeout do cliente (padrão: 300s)
+
+### RMSE Muito Alto
+- **Solução 1**: Verifique a qualidade dos dados
+- **Solução 2**: Aumente o número de pontos históricos
+- **Solução 3**: Verifique se há valores ausentes ou inconsistentes
+
+### Erro: ModuleNotFoundError
+- **Solução**: Verificar se todas as dependências foram instaladas com `pip install -r requirements.txt`
+
+### API não responde
+- **Solução**: Verificar se a porta 8000 está disponível e o serviço está rodando
+
+### Ver Logs Detalhados
+
+O sistema possui logs detalhados em todos os processos:
+
+```python
+import logging
+
+# Configurar nível de log
+logging.basicConfig(
+    level=logging.DEBUG,  # Para logs muito detalhados
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+)
+
+# Rodar a aplicação
+# Você verá logs de:
+# - Carregamento de modelos
+# - Verificação de arquivos
+# - Treinamento automático
+# - Preparação de dados
+# - Previsões
+```
+
+## 📊 Performance
+
+| Métrica | Valor |
+|---------|-------|
+| Tempo com cache | 2-5 segundos |
+| Tempo sem cache (1ª vez) | 10-20 segundos |
+| Tamanho Docker image | ~2-3GB |
+| Memória requerida | ~2GB RAM |
+
+## 🎓 Tickers Suportados
+
+Qualquer ticker do Yahoo Finance (formato: CODIGO.SA para Brasil):
+
+- **Bancos**: ITUB4.SA, BBDC4.SA, SANB11.SA
+- **Energia**: PETR4.SA, ELET3.SA
+- **Mineração**: VALE3.SA
+- **Varejo**: MGLU3.SA, LREN3.SA
+- **E muito mais...**
+
+## 📚 Documentação Adicional
+
+- **Swagger UI** - http://localhost:8000/docs (documentação interativa completa)
+- **ReDoc** - http://localhost:8000/redoc (documentação alternativa)
+- **MLFlow UI** - http://localhost:5000 (após executar `mlflow ui`)
+
+### Documentação da API
+
+A API possui documentação interativa automática gerada pelo FastAPI:
+
+1. **Swagger UI**: Interface interativa onde você pode testar todos os endpoints
+   - Acesse: http://localhost:8000/docs
+   - Recursos: Teste de endpoints, visualização de schemas, exemplos
+
+2. **ReDoc**: Documentação alternativa em formato de página única
+   - Acesse: http://localhost:8000/redoc
+   - Recursos: Visualização limpa, navegação fácil, download de spec OpenAPI
+
+## ⚙️ Arquivos de Exemplo
+
+- **example_auto_train.py** - Demonstração de treinamento automático
+- **example_custom_prediction.py** - Exemplo completo de uso do endpoint custom
+- **example_custom_data.json** - Dados de exemplo prontos para uso
+- **test_system.py** - Script de teste completo do sistema
+
+## 🔗 Links Úteis
+
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [PyTorch](https://pytorch.org/)
+- [MLFlow](https://mlflow.org/)
+- [Yahoo Finance](https://finance.yahoo.com/)
+
+## 📝 Notas Importantes
+
+1. ✅ **Treinamento automático** - O sistema detecta automaticamente quando um modelo não existe e treina sob demanda
+2. 📦 **Modelos independentes** - Cada ticker tem seu próprio modelo (`export/lstm_model_{TICKER}.pth`)
+3. 💾 **Cache local** - Dados são salvos localmente para evitar downloads repetidos do Yahoo Finance
+4. 🔍 **Logs detalhados** - Todo o processo é logado para fácil debugging
+5. ⚙️ **Configuração flexível** - Use variáveis de ambiente para alternar entre local/S3
+6. 🚀 **Pronto para produção** - Suporte completo para Docker e MLFlow
+7. ⏱️ **Tempo de treinamento** - O treinamento leva geralmente 2-5 minutos por ticker
+
+## 🔄 Fluxo de Trabalho Recomendado
+
+### Para um Novo Ticker
+
+1. **Simplesmente faça a previsão**:
+   ```bash
+   curl "http://localhost:8000/predict/NOVO_TICKER.SA?days=7"
+   ```
+   O sistema irá automaticamente:
+   - Buscar dados do Yahoo Finance
+   - Treinar o modelo
+   - Fazer a previsão
+
+2. **Ou treine explicitamente** (opcional):
+   ```bash
+   curl -X POST http://localhost:8000/train \
+     -H "Content-Type: application/json" \
+     -d '{"ticker": "NOVO_TICKER.SA"}'
+   ```
+
+### Para Retreinar um Ticker Existente
+
+Simplesmente execute o treinamento novamente. O novo modelo substituirá o anterior:
+
+```bash
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA", "start_date": "2020-01-01"}'
+```
+
+---
+
+**Desenvolvido para FIAP - Sistema de Previsão de Ações com Machine Learning**
