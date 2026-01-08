@@ -1,13 +1,13 @@
 # API de Previsão de Preços de Ações
 
-Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado, API REST e monitoramento MLFlow.
+Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado, API REST e **monitoramento MLFlow sempre habilitado**.
 
 ## 🚀 Características Principais
 
 - ✅ **Multi-ticker**: Suporta qualquer ação da bolsa brasileira
 - ✅ **Treinamento automático**: Treina modelos sob demanda quando necessário
 - ✅ **Armazenamento híbrido**: Local ou S3 via variável de ambiente
-- ✅ **MLFlow**: Monitoramento completo de experimentos
+- ✅ **MLFlow sempre ativo**: Rastreamento automático de todas as operações
 - ✅ **Dados personalizados**: Endpoint para treinar/prever com seus próprios dados
 - ✅ **Logs detalhados**: Rastreamento completo de operações
 - ✅ **Cache inteligente**: Modelos permanecem em memória após carregamento
@@ -50,6 +50,22 @@ python api.py
 ```
 
 Acesse: http://localhost:8000/docs
+
+### 4. Visualizar Experimentos MLFlow (Opcional)
+
+```bash
+mlflow ui
+```
+
+Acesse: http://localhost:5000
+
+O MLFlow rastreia automaticamente:
+- Parâmetros de treinamento
+- Métricas (RMSE, previsões)
+- Modelos e artefatos
+- Histórico completo de operações
+
+📖 **Guia completo**: [MLFLOW_GUIDE.md](MLFLOW_GUIDE.md)
 
 ## 📊 Como Usar
 
@@ -634,12 +650,215 @@ A API possui documentação interativa automática gerada pelo FastAPI:
    - Acesse: http://localhost:8000/redoc
    - Recursos: Visualização limpa, navegação fácil, download de spec OpenAPI
 
+## 📊 MLFlow - Rastreamento de Experimentos
+
+O MLFlow está **sempre habilitado** e rastreia automaticamente todas as operações de treinamento e previsão.
+
+### O que é MLFlow?
+
+MLFlow é uma plataforma open-source para gerenciar o ciclo de vida completo de Machine Learning. Neste projeto, ele rastreia:
+
+- ✅ Parâmetros de treinamento (épocas, learning rate, etc.)
+- ✅ Métricas de performance (RMSE, acurácia)
+- ✅ Modelos treinados (arquitetura e pesos)
+- ✅ Artefatos (scalers, checkpoints)
+- ✅ Previsões realizadas
+- ✅ Dados de entrada (quantidade de pontos, datas)
+
+### Iniciando o MLFlow UI
+
+```bash
+# Iniciar interface web
+mlflow ui
+
+# Acesse: http://localhost:5000
+```
+
+Ou em porta específica:
+
+```bash
+mlflow ui --port 5001
+```
+
+### O que é Rastreado Automaticamente
+
+#### Durante o Treinamento (`/train`)
+
+- **Parâmetros**: ticker, start_date, end_date, seq_length, epochs, learning_rate, hidden_size, num_layers
+- **Métricas**: rmse (train), rmse (test), next_prediction, data_points
+- **Artefatos**: lstm_model_{ticker}.pth, scaler_features_{ticker}.save, scaler_close_{ticker}.save
+
+#### Durante Previsões (`/predict`)
+
+- **Parâmetros**: ticker, days, endpoint, start_date, end_date
+- **Métricas**: data_points, last_known_price, prediction_day_1, prediction_day_2, ...
+
+#### Durante Previsões Customizadas (`/predict-custom`)
+
+- **Parâmetros**: ticker_name, days, seq_length, epochs, learning_rate
+- **Métricas**: historical_data_points, train_samples, test_samples, rmse, previsões
+
+### Visualizando Experimentos
+
+Após executar `mlflow ui`, você verá:
+
+- **Runs**: Lista de todas as execuções
+- **Parameters**: Hiperparâmetros de cada run
+- **Metrics**: Gráficos de métricas ao longo do tempo
+- **Artifacts**: Modelos e arquivos salvos
+- **Comparison**: Comparar múltiplas execuções
+
+### Exemplos de Uso do MLFlow
+
+#### 1. Treinar e Visualizar
+
+```bash
+# Treinar modelo
+curl -X POST http://localhost:8000/train \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA"}'
+
+# Visualizar no MLFlow
+mlflow ui
+# Abrir http://localhost:5000
+# Ver experimento "stock-price-prediction"
+# Verificar métricas de RMSE
+```
+
+#### 2. Comparar Diferentes Tickers
+
+```bash
+# Treinar múltiplos tickers
+curl -X POST http://localhost:8000/train -d '{"ticker": "PETR4.SA"}'
+curl -X POST http://localhost:8000/train -d '{"ticker": "VALE3.SA"}'
+curl -X POST http://localhost:8000/train -d '{"ticker": "ITUB4.SA"}'
+
+# No MLFlow UI:
+# - Filtrar por ticker
+# - Comparar RMSE
+# - Identificar melhor performance
+```
+
+#### 3. Filtrando Resultados
+
+No MLFlow UI, use filtros como:
+
+```python
+# Filtrar por ticker
+ticker = "VALE3.SA"
+
+# Filtrar por RMSE baixo
+metrics.rmse < 5.0
+
+# Filtrar por data
+attributes.start_time > "2026-01-01"
+```
+
+### Métricas Importantes
+
+#### RMSE (Root Mean Square Error)
+
+Mede o erro médio das previsões:
+
+- **RMSE < 2**: Excelente
+- **RMSE 2-5**: Bom
+- **RMSE 5-10**: Aceitável
+- **RMSE > 10**: Necessita ajustes
+
+### Configuração Avançada
+
+#### Servidor Remoto
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=http://mlflow-server:5000
+MLFLOW_EXPERIMENT_NAME=stock-production
+```
+
+#### PostgreSQL Backend
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=postgresql://user:password@localhost/mlflow
+```
+
+#### S3 para Artefatos
+
+```bash
+# .env
+MLFLOW_TRACKING_URI=http://mlflow-server:5000
+MLFLOW_S3_ENDPOINT_URL=https://s3.amazonaws.com
+AWS_ACCESS_KEY_ID=sua-chave
+AWS_SECRET_ACCESS_KEY=seu-secret
+```
+
+### Estrutura de Dados do MLFlow
+
+```
+mlruns/
+├── 0/                          # Experimento padrão
+│   ├── meta.yaml
+│   └── <run-id>/               # Cada execução tem um ID único
+│       ├── artifacts/          # Modelos, scalers salvos
+│       ├── metrics/            # RMSE, predictions, etc.
+│       ├── params/             # Hiperparâmetros
+│       └── tags/               # Tags customizadas
+└── <experiment-id>/            # Experimento "stock-price-prediction"
+    └── ...
+```
+
+### Boas Práticas
+
+1. **Nomear Experimentos**:
+   - Produção: `MLFLOW_EXPERIMENT_NAME=stock-production`
+   - Desenvolvimento: `MLFLOW_EXPERIMENT_NAME=stock-dev`
+   - Testes: `MLFLOW_EXPERIMENT_NAME=stock-experiments`
+
+2. **Tags Customizadas**:
+   ```python
+   mlflow.set_tag("environment", "production")
+   mlflow.set_tag("model_version", "v2.0")
+   mlflow.set_tag("data_source", "yahoo_finance")
+   ```
+
+3. **Backup de Experimentos**:
+   ```bash
+   # Exportar
+   mlflow experiments export --experiment-id 0 --output-dir backup/
+   
+   # Importar
+   mlflow experiments import --input-dir backup/
+   ```
+
+### Troubleshooting
+
+#### MLFlow UI não inicia
+
+```bash
+# Verificar porta ocupada (Windows)
+netstat -ano | findstr :5000
+
+# Usar outra porta
+mlflow ui --port 5001
+```
+
+#### Experimentos não aparecem
+
+```bash
+# Verificar diretório mlruns
+dir mlruns
+
+# Resetar para local
+mlflow ui
+```
+
 ## ⚙️ Arquivos de Exemplo
 
 - **example_auto_train.py** - Demonstração de treinamento automático
 - **example_custom_prediction.py** - Exemplo completo de uso do endpoint custom
 - **example_custom_data.json** - Dados de exemplo prontos para uso
 - **test_system.py** - Script de teste completo do sistema
+- **example_mlflow.py** - Demonstração do uso do MLFlow
 
 ## 🔗 Links Úteis
 

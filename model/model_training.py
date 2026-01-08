@@ -10,13 +10,10 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-try:
-    import mlflow
-    import mlflow.pytorch
-    MLFLOW_ENABLED = True
-except ImportError:
-    MLFLOW_ENABLED = False
-    print("MLFlow não instalado. Instale com: pip install mlflow")
+import mlflow
+import mlflow.pytorch
+
+MLFLOW_ENABLED = True
 
 sys.path.append(str(Path(__file__).parent.parent / "scrapper"))
 

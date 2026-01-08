@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent / "scrapper"))
 sys.path.append(str(Path(__file__).parent / "model"))
 
-from model_executor import predict_price
+from model.model_executor import predict_price
 from scrapper_pipeline import get_or_scrappe_ticker
 from model_training import train_model
 
@@ -24,6 +24,13 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Configurar MLFlow
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "stock-price-prediction")
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+logger.info(f"MLFlow configurado - URI: {MLFLOW_TRACKING_URI}, Experimento: {MLFLOW_EXPERIMENT_NAME}")
 
 
 class PredictionRequest(BaseModel):
@@ -139,29 +146,48 @@ def predict_ticker_post(request: PredictionRequest):
     try:
         logger.info(f"Recebida requisição POST de previsão para ticker: {request.ticker}, dias: {request.days}")
         
-        df_processed = get_or_scrappe_ticker(
-            ticker=request.ticker.upper(),
-            data_path="scapper/data/processed/prices",
-            start_date=request.start_date,
-            end_date=request.end_date
-        )
-        
-        if df_processed is None or df_processed.empty:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Não foi possível obter dados para o ticker {request.ticker}"
+        # Iniciar tracking MLFlow
+        with mlflow.start_run(run_name=f"predict_POST_{request.ticker.upper()}_{request.days}days"):
+            mlflow.log_param("ticker", request.ticker.upper())
+            mlflow.log_param("days", request.days)
+            mlflow.log_param("endpoint", "POST /predict")
+            if request.start_date:
+                mlflow.log_param("start_date", request.start_date)
+            if request.end_date:
+                mlflow.log_param("end_date", request.end_date)
+            
+            df_processed = get_or_scrappe_ticker(
+                ticker=request.ticker.upper(),
+                data_path="scapper/data/processed/prices",
+                start_date=request.start_date,
+                end_date=request.end_date
             )
-        
-        result = predict_price(df_processed, ticker=request.ticker.upper(), days=request.days)
-        
-        logger.info(f"Previsão concluída para {request.ticker}: {request.days} dias")
-        
-        return PredictionResponse(
-            ticker=request.ticker.upper(),
-            predictions=[round(p, 2) for p in result['predictions']],
-            days=result['days'],
-            last_known_price=round(result['last_known_price'], 2)
-        )
+            
+            if df_processed is None or df_processed.empty:
+                mlflow.log_param("status", "error_no_data")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Não foi possível obter dados para o ticker {request.ticker}"
+                )
+            
+            mlflow.log_metric("data_points", len(df_processed))
+            
+            result = predict_price(df_processed, ticker=request.ticker.upper(), days=request.days)
+            
+            # Log das previsões
+            mlflow.log_metric("last_known_price", result['last_known_price'])
+            for i, pred in enumerate(result['predictions'], 1):
+                mlflow.log_metric(f"prediction_day_{i}", pred)
+            mlflow.log_param("status", "success")
+            
+            logger.info(f"Previsão concluída para {request.ticker}: {request.days} dias")
+            
+            return PredictionResponse(
+                ticker=request.ticker.upper(),
+                predictions=[round(p, 2) for p in result['predictions']],
+                days=result['days'],
+                last_known_price=round(result['last_known_price'], 2)
+            )
         
     except ValueError as e:
         logger.error(f"Erro de validação: {e}")
@@ -233,7 +259,14 @@ def predict_custom_data(request: CustomPredictionRequest):
         
         logger.info(f"Recebida requisição de predição customizada: {len(request.historical_data)} pontos, {request.days} dias")
         
-        if len(request.historical_data) < 30:
+        # Iniciar tracking MLFlow
+        with mlflow.start_run(run_name=f"predict_custom_{request.ticker_name}_{request.days}days"):
+            mlflow.log_param("ticker_name", request.ticker_name)
+            mlflow.log_param("days", request.days)
+            mlflow.log_param("endpoint", "POST /predict-custom")
+            mlflow.log_metric("historical_data_points", len(request.historical_data))
+        
+            if len(request.historical_data) < 30:
             raise HTTPException(
                 status_code=400,
                 detail=f"Mínimo de 30 pontos históricos necessários. Fornecidos: {len(request.historical_data)}"
@@ -321,6 +354,14 @@ def predict_custom_data(request: CustomPredictionRequest):
         
         rmse = np.sqrt(mean_squared_error(reals, preds))
         
+        # Log métricas de treino no MLFlow
+        mlflow.log_metric("rmse", rmse)
+        mlflow.log_metric("train_samples", len(X_train))
+        mlflow.log_metric("test_samples", len(X_test))
+        mlflow.log_param("seq_length", SEQ_LENGTH)
+        mlflow.log_param("epochs", EPOCHS)
+        mlflow.log_param("learning_rate", LEARNING_RATE)
+        
         logger.info(f"RMSE do modelo temporário: {rmse:.2f}")
         
         predictions = []
@@ -343,6 +384,12 @@ def predict_custom_data(request: CustomPredictionRequest):
                 current_data = np.vstack([current_data, new_point])
         
         last_known_price = float(df['close'].iloc[-1])
+        
+        # Log das previsões no MLFlow
+        mlflow.log_metric("last_known_price", last_known_price)
+        for i, pred in enumerate(predictions, 1):
+            mlflow.log_metric(f"prediction_day_{i}", pred)
+        mlflow.log_param("status", "success")
         
         logger.info(f"Previsão customizada concluída: {request.days} dias")
         
