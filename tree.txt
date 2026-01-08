@@ -1,0 +1,69 @@
+Listagem de caminhos de pasta
+O n£mero de s‚rie do volume ‚ 7A56-E284
+C:.
+|   api.py
+|   arquitetur-projeto.png
+|   arquitetura-projeto.drawio
+|   docker-compose.yml
+|   Dockerfile.txt
+|   dockerignore.txt
+|   gitignore.txt
+|   image.png
+|   model_executor.py
+|   README.html
+|   README.md
+|   requirements.txt
+|   stock_prediction_service.png
+|   tree.txt
+|   
++---export
+|       lstm_model.pth
+|       scaler_close.save
+|       scaler_features.save
+|       
++---model
+|       model_training.py
+|       model_training_old.py
+|       
+\---scrapper
+    |   scrapper_pipeline.py
+    |   __init__.py
+    |   
+    +---data
+    |   +---processed_prices
+    |   |   +---ticker-VALE3.SA
+    |   |   |       89297b5a434f4d40b50d59c3b610da17-0.parquet
+    |   |   |       
+    |   |   +---ticker=ITUB4.SA
+    |   |   |       89297b5a434f4d40b50d59c3b610da17-0.parquet
+    |   |   |       
+    |   |   \---ticker=PETR4.SA
+    |   |           89297b5a434f4d40b50d59c3b610da17-0 (1).parquet
+    |   |           
+    |   \---raw
+    |           prices_raw.parquet
+    |           
+    \---scr
+        |   __init__.py
+        |   
+        +---extract
+        |   |   yahoo_extractor.py
+        |   |   __init__.py
+        |   |   
+        |   \---_pycache_
+        |           yahoo_extractor.cpython-313.pyc
+        |           
+        +---load
+        |   |   parquet_loader.py
+        |   |   __init__.py
+        |   |   
+        |   \---_pycache_
+        |           parquet_loader.cpython-313.pyc
+        |           
+        \---transform
+            |   price_transformer.py
+            |   __init__.py
+            |   
+            \---_pycache_
+                    price_transformer.cpython-313.pyc
+                    
