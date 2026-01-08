@@ -132,6 +132,13 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
                 latest_file = max(parquet_files, key=lambda p: p.stat().st_mtime)
                 logger.info(f"Ticker {ticker} encontrado localmente. Carregando: {latest_file}")
                 df = pd.read_parquet(latest_file)
+                
+                # Garantir que a coluna 'ticker' existe
+                if 'ticker' not in df.columns:
+                    df['ticker'] = ticker
+                    logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker}")
+                
+                logger.info(f"Dados locais encontrados para {ticker}")
                 return df
             except Exception as e:
                 logger.warning(f"Erro ao carregar dados locais do ticker {ticker}: {e}")
@@ -170,6 +177,11 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
             
             obj = s3_client.get_object(Bucket=bucket, Key=s3_key)
             df = pd.read_parquet(io.BytesIO(obj['Body'].read()))
+            
+            # Garantir que a coluna 'ticker' existe
+            if 'ticker' not in df.columns:
+                df['ticker'] = ticker
+                logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker} do S3")
             
             logger.info(f"Ticker {ticker} carregado com sucesso do S3")
             return df

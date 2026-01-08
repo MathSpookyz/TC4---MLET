@@ -50,6 +50,12 @@ def load_ticker_local(ticker: str, data_path: str = "scapper/data/processed/pric
             try:
                 logger.info(f"Ticker {ticker} encontrado localmente. Carregando dados existentes...")
                 df = pd.read_parquet(parquet_files[0])
+                
+                # Garantir que a coluna 'ticker' existe
+                if 'ticker' not in df.columns:
+                    df['ticker'] = ticker
+                    logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker}")
+                
                 return df
             except Exception as e:
                 logger.warning(f"Erro ao carregar dados locais do ticker {ticker}: {e}")
@@ -77,6 +83,11 @@ def load_ticker_local(ticker: str, data_path: str = "scapper/data/processed/pric
         
         obj = s3.get_object(Bucket=bucket, Key=s3_key)
         df = pd.read_parquet(io.BytesIO(obj['Body'].read()))
+        
+        # Garantir que a coluna 'ticker' existe
+        if 'ticker' not in df.columns:
+            df['ticker'] = ticker
+            logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker} do S3")
         
         logger.info(f"Ticker {ticker} carregado com sucesso do S3")
         return df
