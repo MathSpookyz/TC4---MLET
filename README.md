@@ -74,26 +74,6 @@ curl -X POST http://localhost:8000/train \
 
 ### Fazer Previsões
 
-#### Previsão Simples (com treinamento automático)
-
-```bash
-# O sistema treina automaticamente se o modelo não existir
-curl "http://localhost:8000/predict/PETR4.SA?days=7"
-```
-
-#### Via API - GET
-
-```bash
-# Previsão de 1 dia para VALE3.SA
-curl http://localhost:8000/predict/VALE3.SA
-
-# Previsão de 7 dias
-curl "http://localhost:8000/predict/VALE3.SA?days=7"
-
-# Com período específico
-curl "http://localhost:8000/predict/ITUB4.SA?days=5&start_date=2023-01-01&end_date=2024-12-31"
-```
-
 #### Via API - POST
 
 ```bash
@@ -319,15 +299,15 @@ Solução: Verificar se todos os pontos têm date, close e volume válidos.
 |--------|----------|-----------|
 | GET | `/` | Informações da API |
 | GET | `/health` | Health check |
-| GET | `/predict/{ticker}` | Previsão para ticker (params: days, start_date, end_date) |
+
 | POST | `/predict` | Previsão com JSON completo |
 | POST | `/train` | Treinar modelo para ticker |
 | POST | `/predict-custom` | Treinar/prever com dados personalizados (isolado) |
 
 ### Comparação de Endpoints
 
-| Característica | `/predict/{ticker}` | `/train` | `/predict-custom` |
-|----------------|---------------------|----------|-------------------|
+| Característica | `/predict` (POST) | `/train` | `/predict-custom` |
+|----------------|-------------------|----------|-------------------|
 | Usa dados do Yahoo Finance | ✅ | ✅ | ❌ |
 | Salva modelo | ❌ | ✅ | ❌ |
 | Dados personalizados | ❌ | ❌ | ✅ |
@@ -471,13 +451,19 @@ curl -X POST http://localhost:8000/train \
 
 ```bash
 # PETR4 - 7 dias
-curl "http://localhost:8000/predict/PETR4.SA?days=7"
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "PETR4.SA", "days": 7}'
 
 # VALE3 - 30 dias
-curl "http://localhost:8000/predict/VALE3.SA?days=30"
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "VALE3.SA", "days": 30}'
 
 # ITUB4 - 14 dias
-curl "http://localhost:8000/predict/ITUB4.SA?days=14"
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "ITUB4.SA", "days": 14}'
 ```
 
 ### Exemplo 3: Dados Personalizados
@@ -664,7 +650,9 @@ A API possui documentação interativa automática gerada pelo FastAPI:
 
 1. **Simplesmente faça a previsão**:
    ```bash
-   curl "http://localhost:8000/predict/NOVO_TICKER.SA?days=7"
+   curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"ticker": "NOVO_TICKER.SA", "days": 7}'
    ```
    O sistema irá automaticamente:
    - Buscar dados do Yahoo Finance
