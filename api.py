@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).parent / "model"))
 from model_executor import predict_price
 from scrapper_pipeline import get_or_scrappe_ticker
 from model_training import train_model
+import model_executor
 
 app = FastAPI(
     title="Stock Price Prediction API",
@@ -188,7 +189,19 @@ def train_ticker(request: TrainRequest):
         )
         
         logger.info(f"Treinamento concluído para {request.ticker}")
-        
+        # Invalidate and reload model cache so the API uses the newly trained model
+        try:
+            tk = request.ticker.upper()
+            if tk in model_executor._models_cache:
+                del model_executor._models_cache[tk]
+            try:
+                model_executor.load_artifacts(tk)
+                logger.info(f"Cache atualizado para modelo {tk}")
+            except Exception as _:
+                logger.warning(f"Não foi possível recarregar artefatos para {tk}")
+        except Exception:
+            logger.debug("Falha ao invalidar/recarregar cache de modelos", exc_info=True)
+
         return TrainResponse(
             ticker=request.ticker.upper(),
             status="success",

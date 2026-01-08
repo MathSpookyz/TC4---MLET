@@ -2,6 +2,7 @@ import yfinance as yf
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
 import joblib
 import os
 import sys
@@ -10,13 +11,8 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-try:
-    import mlflow
-    import mlflow.pytorch
-    MLFLOW_ENABLED = True
-except ImportError:
-    MLFLOW_ENABLED = False
-    print("MLFlow não instalado. Instale com: pip install mlflow")
+# MLflow removed: disable tracking and proceed without mlflow
+MLFLOW_ENABLED = False
 
 sys.path.append(str(Path(__file__).parent.parent / "scrapper"))
 
@@ -25,19 +21,37 @@ from scrapper_pipeline import get_or_scrappe_ticker
 
 SEQ_LENGTH = 30
 TRAIN_SPLIT = 0.8
-EPOCHS = 50
+# Reduce default epochs for faster runs; minibatch + early stopping used
+EPOCHS = 30
 LEARNING_RATE = 0.001
+
+# Training speedups
+BATCH_SIZE = 64
+PATIENCE = 5
+
+# Model defaults (increased capacity to reduce error)
+DEFAULT_HIDDEN_SIZE = 128
+DEFAULT_NUM_LAYERS = 3
+
+# Reproducibility
+import random
+SEED = 42
+np.random.seed(SEED)
+random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+
+# Use GPU if available to speed up training
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(BASE_DIR, "export")
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
+# MLflow tracking removed; keep constants if needed in future
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "stock-price-prediction")
-
-if MLFLOW_ENABLED:
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
 
 class LSTMModel(nn.Module):
@@ -77,18 +91,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
     
     ticker = ticker.upper()
     
-    if MLFLOW_ENABLED:
-        mlflow.start_run(run_name=f"train_{ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-        
-        mlflow.log_param("ticker", ticker)
-        mlflow.log_param("start_date", start_date)
-        mlflow.log_param("end_date", end_date)
-        mlflow.log_param("seq_length", SEQ_LENGTH)
-        mlflow.log_param("train_split", TRAIN_SPLIT)
-        mlflow.log_param("epochs", EPOCHS)
-        mlflow.log_param("learning_rate", LEARNING_RATE)
-        mlflow.log_param("hidden_size", 64)
-        mlflow.log_param("num_layers", 2)
+    # mlflow tracking disabled
     
     try:
         print(f"\n{'='*50}")
@@ -112,8 +115,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         
         print(f"Dados obtidos: {len(df)} registros de {df.index.min()} até {df.index.max()}")
         
-        if MLFLOW_ENABLED:
-            mlflow.log_metric("dataset_size", len(df))
+        # mlflow tracking disabled
         
         
         X = df[["close", "volume"]].values
@@ -141,48 +143,84 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         print(f"Dados de treino: {len(X_train)} sequências")
         print(f"Dados de teste: {len(X_test)} sequências")
         
-        if MLFLOW_ENABLED:
-            mlflow.log_metric("train_sequences", len(X_train))
-            mlflow.log_metric("test_sequences", len(X_test))
+        # mlflow tracking disabled
         
         
-        X_train_torch = torch.tensor(X_train, dtype=torch.float32)
-        y_train_torch = torch.tensor(y_train, dtype=torch.float32)
-        
+        # Create dataloader for minibatch training (faster than full-batch)
+        train_dataset = TensorDataset(
+            torch.tensor(X_train, dtype=torch.float32),
+            torch.tensor(y_train, dtype=torch.float32)
+        )
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+        # Validation tensors (kept as full tensors for quick val checks)
         X_test_torch = torch.tensor(X_test, dtype=torch.float32)
         y_test_torch = torch.tensor(y_test, dtype=torch.float32)
         
         
         model = LSTMModel(
             input_size=2,
-            hidden_size=64,
-            num_layers=2
+            hidden_size=DEFAULT_HIDDEN_SIZE,
+            num_layers=DEFAULT_NUM_LAYERS
         )
+        model.to(DEVICE)
         
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
         
         
-        print(f"\nIniciando treinamento ({EPOCHS} épocas)...")
-        
+        print(f"\nIniciando treinamento ({EPOCHS} épocas, batch_size={BATCH_SIZE})...")
+
+        best_val_loss = float('inf')
+        patience_counter = 0
+
         for epoch in range(EPOCHS):
             model.train()
-            optimizer.zero_grad()
-            
-            output = model(X_train_torch)
-            loss = criterion(output, y_train_torch)
-            
-            loss.backward()
-            optimizer.step()
-            
-            if MLFLOW_ENABLED:
-                mlflow.log_metric("train_loss", loss.item(), step=epoch)
-            
-            if (epoch + 1) % 10 == 0:
-                print(f"Época {epoch + 1}/{EPOCHS} - Loss: {loss.item():.6f}")
+            epoch_loss = 0.0
+            seen = 0
+
+            for xb, yb in train_loader:
+                xb = xb.to(DEVICE)
+                yb = yb.to(DEVICE)
+
+                optimizer.zero_grad()
+                output = model(xb)
+                loss = criterion(output, yb)
+                loss.backward()
+                optimizer.step()
+
+                batch_size = xb.size(0)
+                epoch_loss += loss.item() * batch_size
+                seen += batch_size
+
+            avg_train_loss = epoch_loss / max(1, seen)
+
+            # Validation loss (quick check on full validation set)
+            model.eval()
+            with torch.no_grad():
+                X_val = X_test_torch.to(DEVICE)
+                y_val = y_test_torch.to(DEVICE)
+                val_preds = model(X_val)
+                val_loss = criterion(val_preds, y_val).item()
+
+            # Early stopping
+            if val_loss < best_val_loss - 1e-8:
+                best_val_loss = val_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                print(f"Época {epoch + 1}/{EPOCHS} - Train Loss: {avg_train_loss:.6f} - Val Loss: {val_loss:.6f}")
+
+            if patience_counter >= PATIENCE:
+                print(f"Parando cedo por falta de melhoria (patience={PATIENCE}) na época {epoch+1}")
+                break
         
         
         print("\nExecutando backtest...")
+        # Ensure model on CPU for evaluation and saving
+        model.to("cpu")
         model.eval()
         with torch.no_grad():
             preds_scaled = model(X_test_torch).numpy()
@@ -203,13 +241,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         print(f"Preço previsto último dia: R$ {preds[-1][0]:.2f}")
         print(f"Erro absoluto: R$ {abs(reals[-1][0] - preds[-1][0]):.2f}")
         
-        if MLFLOW_ENABLED:
-            mlflow.log_metric("rmse", rmse)
-            mlflow.log_metric("mae", mae)
-            mlflow.log_metric("mape", mape)
-            mlflow.log_metric("last_real_price", float(reals[-1][0]))
-            mlflow.log_metric("last_predicted_price", float(preds[-1][0]))
-            mlflow.log_metric("last_absolute_error", float(abs(reals[-1][0] - preds[-1][0])))
+        # mlflow tracking disabled
         
         
         last_sequence = X_scaled[-SEQ_LENGTH:]
@@ -221,8 +253,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         next_price = close_scaler.inverse_transform([[next_scaled]])[0][0]
         print(f"\nPreço previsto próximo dia ({ticker}): R$ {next_price:.2f}")
         
-        if MLFLOW_ENABLED:
-            mlflow.log_metric("next_day_prediction", next_price)
+        # mlflow tracking disabled
         
         
         MODEL_PATH = os.path.join(EXPORT_DIR, f"lstm_model_{ticker}.pth")
@@ -233,8 +264,8 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
             "model_state_dict": model.state_dict(),
             "model_config": {
                 "input_size": 2,
-                "hidden_size": 64,
-                "num_layers": 2,
+                "hidden_size": DEFAULT_HIDDEN_SIZE,
+                "num_layers": DEFAULT_NUM_LAYERS,
                 "seq_length": SEQ_LENGTH
             },
             "version": "v1",
@@ -258,16 +289,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         print(f"✓ Scaler features salvo em: {SCALER_FEATURES_PATH}")
         print(f"✓ Scaler close salvo em: {SCALER_CLOSE_PATH}")
         
-        if MLFLOW_ENABLED:
-            mlflow.pytorch.log_model(model, "model")
-            
-            mlflow.log_artifact(MODEL_PATH, "checkpoints")
-            mlflow.log_artifact(SCALER_FEATURES_PATH, "scalers")
-            mlflow.log_artifact(SCALER_CLOSE_PATH, "scalers")
-            
-            mlflow.set_tag("ticker", ticker)
-            mlflow.set_tag("model_type", "LSTM")
-            mlflow.set_tag("framework", "PyTorch")
+        # mlflow tracking disabled
         
         print(f"\n{'='*50}")
         print("Treinamento concluído com sucesso!")
@@ -285,14 +307,12 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
             "trained_at": checkpoint["trained_at"]
         }
         
-        if MLFLOW_ENABLED:
-            mlflow.end_run()
+        # mlflow tracking disabled
         
         return result
         
     except Exception as e:
-        if MLFLOW_ENABLED:
-            mlflow.end_run(status="FAILED")
+        # mlflow tracking disabled
         raise e
 
 
