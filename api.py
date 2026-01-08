@@ -267,10 +267,10 @@ def predict_custom_data(request: CustomPredictionRequest):
             mlflow.log_metric("historical_data_points", len(request.historical_data))
         
             if len(request.historical_data) < 30:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Mínimo de 30 pontos históricos necessários. Fornecidos: {len(request.historical_data)}"
-            )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Mínimo de 30 pontos históricos necessários. Fornecidos: {len(request.historical_data)}"
+                )
         
         data_dict = {
             'date': [pd.to_datetime(point.date) for point in request.historical_data],
