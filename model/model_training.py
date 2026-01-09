@@ -11,8 +11,6 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-MLFLOW_ENABLED = False
-
 sys.path.append(str(Path(__file__).parent.parent / "scrapper"))
 
 from scrapper_pipeline import get_or_scrappe_ticker
@@ -42,11 +40,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(BASE_DIR, "export")
 os.makedirs(EXPORT_DIR, exist_ok=True)
-
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
-MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "stock-price-prediction")
-
-
 class LSTMModel(nn.Module):
     def __init__(self, input_size=2, hidden_size=64, num_layers=2):
         super().__init__()

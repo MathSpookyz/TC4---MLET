@@ -1,13 +1,12 @@
 # API de Previsão de Preços de Ações
 
-Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado, API REST e monitoramento MLFlow.
+Sistema completo de previsão de preços de ações usando modelo LSTM (Long Short-Term Memory) com pipeline ETL automatizado e API REST.
 
 ## 🚀 Características Principais
 
 - ✅ **Multi-ticker**: Suporta qualquer ação da bolsa brasileira
 - ✅ **Treinamento automático**: Treina modelos sob demanda quando necessário
 - ✅ **Armazenamento híbrido**: Local ou S3 via variável de ambiente
-- ✅ **MLFlow**: Monitoramento completo de experimentos
 - ✅ **Dados personalizados**: Endpoint para treinar/prever com seus próprios dados
 - ✅ **Logs detalhados**: Rastreamento completo de operações
 - ✅ **Cache inteligente**: Modelos permanecem em memória após carregamento
@@ -39,8 +38,6 @@ STORAGE_TYPE=local
 # AWS_ACCESS_KEY_ID=sua-chave
 # AWS_SECRET_ACCESS_KEY=seu-secret
 
-# MLFlow (padrão: local)
-MLFLOW_TRACKING_URI=file:./mlruns
 ```
 
 ### 3. Iniciar API
@@ -326,7 +323,7 @@ Solução: Verificar se todos os pontos têm date, close e volume válidos.
 - `scrapper_pipeline.py` - Orquestração do pipeline
 
 **Machine Learning**
-- `model_training.py` - Treinamento LSTM com MLFlow
+- `model_training.py` - Treinamento LSTM
 - `model_executor.py` - Carregamento e inferência de modelos
 
 **API REST**
@@ -358,7 +355,7 @@ Cliente → API → Verifica Cache Local → Se não existe → Yahoo Finance
 ├── requirements.txt                # Dependências Python
 ├── docker-compose.yml              # Orquestração Docker
 ├── model/
-│   └── model_training.py          # Treinamento LSTM + MLFlow
+│   └── model_training.py          # Treinamento LSTM
 ├── scrapper/
 │   ├── scrapper_pipeline.py       # Orquestração ETL
 │   ├── scr/
@@ -397,15 +394,9 @@ docker build -t stock-api .
 docker run -d -p 8000:8000 stock-api
 ```
 
-## 📈 MLFlow - Monitoramento de Experimentos
-
-O sistema usa MLFlow para rastrear todos os treinamentos.
-
 ### Visualizar Experimentos
 
 ```bash
-# Iniciar MLFlow UI
-mlflow ui
 
 # Acessar em: http://localhost:5000
 ```
@@ -416,19 +407,17 @@ mlflow ui
 - **Artefatos**: Modelos salvos (`.pth`), scalers (`.save`)
 - **Tags**: versão, timestamp, duração do treinamento
 
-### Comparar Modelos
-
-No MLFlow UI você pode:
-- Comparar RMSE entre diferentes tickers
-- Ver evolução do loss durante treinamento
-- Analisar distribuição de previsões
-- Baixar modelos de versões anteriores
-- Filtrar experimentos por parâmetros
-- Exportar resultados para análise
-
 ## 💡 Exemplos Práticos
 
 ### Exemplo 1: Treinar Múltiplos Tickers
+
+**Testes no servidor (Render)**
+
+  Para executar os exemplos diretamente no servidor, substitua `http://localhost:8000/` por  `https://tc4-mlet-main.onrender.com/{ENDPOINT}`
+
+  **Exemplo:**  
+  - `POST /train` → `https://tc4-mlet-main.onrender.com/train`
+
 
 ```bash
 # Treinar PETR4
@@ -606,7 +595,6 @@ Qualquer ticker do Yahoo Finance (formato: CODIGO.SA para Brasil):
 
 - **Swagger UI** - http://localhost:8000/docs (documentação interativa completa)
 - **ReDoc** - http://localhost:8000/redoc (documentação alternativa)
-- **MLFlow UI** - http://localhost:5000 (após executar `mlflow ui`)
 
 ### Documentação da API
 
@@ -631,7 +619,6 @@ A API possui documentação interativa automática gerada pelo FastAPI:
 
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [PyTorch](https://pytorch.org/)
-- [MLFlow](https://mlflow.org/)
 - [Yahoo Finance](https://finance.yahoo.com/)
 
 ## 📝 Notas Importantes
@@ -641,7 +628,7 @@ A API possui documentação interativa automática gerada pelo FastAPI:
 3. 💾 **Cache local** - Dados são salvos localmente para evitar downloads repetidos do Yahoo Finance
 4. 🔍 **Logs detalhados** - Todo o processo é logado para fácil debugging
 5. ⚙️ **Configuração flexível** - Use variáveis de ambiente para alternar entre local/S3
-6. 🚀 **Pronto para produção** - Suporte completo para Docker e MLFlow
+6. 🚀 **Pronto para produção** - Suporte completo para Docker
 7. ⏱️ **Tempo de treinamento** - O treinamento leva geralmente 2-5 minutos por ticker
 
 ## 🔄 Fluxo de Trabalho Recomendado
@@ -675,7 +662,3 @@ curl -X POST http://localhost:8000/train \
   -H "Content-Type: application/json" \
   -d '{"ticker": "PETR4.SA", "start_date": "2020-01-01"}'
 ```
-
----
-
-**Desenvolvido para FIAP - Sistema de Previsão de Ações com Machine Learning**
