@@ -55,35 +55,31 @@ def load_artifacts(ticker: str):
     ticker = ticker.upper()
     logger.info(f"Iniciando carregamento de artefatos para ticker: {ticker}")
     
-    # Verificar se já está em cache
     logger.debug(f"Verificando cache de modelos para {ticker}")
     if ticker in _models_cache:
         logger.info(f"Modelo {ticker} encontrado em cache")
         return _models_cache[ticker]
     
     logger.debug(f"Modelo {ticker} não encontrado em cache, carregando do disco")
-    
-    # Caminhos dos arquivos do modelo
+
     MODEL_PATH = os.path.join(EXPORT_DIR, f"lstm_model_{ticker}.pth")
     SCALER_FEATURES_PATH = os.path.join(EXPORT_DIR, f"scaler_features_{ticker}.save")
     SCALER_CLOSE_PATH = os.path.join(EXPORT_DIR, f"scaler_close_{ticker}.save")
     
     logger.debug(f"Verificando existência de arquivos do modelo em: {EXPORT_DIR}")
-    
-    # Verificar se os arquivos existem
+
     logger.debug(f"Verificando se modelo existe: {MODEL_PATH}")
     if not os.path.exists(MODEL_PATH):
         logger.warning(f"Modelo não encontrado para {ticker}. Iniciando treinamento automático...")
         
         try:
-            # Importar função de treinamento
+   
             from model.model_training import train_model
             
             logger.info(f"Treinando modelo automaticamente para {ticker}")
             train_result = train_model(ticker=ticker)
             logger.info(f"Treinamento automático concluído para {ticker} com RMSE: {train_result.get('rmse', 'N/A')}")
             
-            # Verificar novamente após treinamento
             logger.debug(f"Verificando se modelo foi criado após treinamento: {MODEL_PATH}")
             if not os.path.exists(MODEL_PATH):
                 error_msg = f"Falha ao criar modelo para {ticker} após treinamento automático"
@@ -105,7 +101,6 @@ def load_artifacts(ticker: str):
         logger.error(error_msg)
         raise FileNotFoundError(error_msg)
     
-    # Carregar checkpoint
     logger.info(f"Carregando checkpoint do modelo de: {MODEL_PATH}")
     try:
         checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
@@ -119,7 +114,6 @@ def load_artifacts(ticker: str):
     seq_length = model_config["seq_length"]
     logger.debug(f"Configuração do modelo: {model_config}")
     
-    # Criar e carregar modelo
     logger.info(f"Criando modelo LSTM para {ticker}")
     try:
         model = LSTMModel(
@@ -136,7 +130,6 @@ def load_artifacts(ticker: str):
         logger.error(error_msg, exc_info=True)
         raise RuntimeError(error_msg) from e
     
-    # Carregar scalers
     logger.info(f"Carregando scalers para {ticker}")
     try:
         scaler_features = joblib.load(SCALER_FEATURES_PATH)
@@ -147,7 +140,6 @@ def load_artifacts(ticker: str):
         logger.error(error_msg, exc_info=True)
         raise RuntimeError(error_msg) from e
     
-    # Armazenar em cache
     artifacts = {
         "model": model,
         "scaler_features": scaler_features,
@@ -160,10 +152,6 @@ def load_artifacts(ticker: str):
     logger.info(f"Artefatos para {ticker} armazenados em cache com sucesso")
     
     return artifacts
-
-# =========================
-# Dados
-# =========================
 
 def load_processed_data(ticker: str) -> pd.DataFrame:
     logger.info(f"Carregando dados processados para ticker: {ticker}")
@@ -226,10 +214,6 @@ def filter_date_range(df: pd.DataFrame, start: datetime, end: datetime, seq_leng
     logger.info(f"Dados filtrados com sucesso: {len(filtered)} registros")
     return filtered
 
-# =========================
-# Preparação do input
-# =========================
-
 def prepare_input_window(df: pd.DataFrame, scaler_features, seq_length: int) -> torch.Tensor:
     logger.debug(f"Preparando janela de entrada com {seq_length} registros")
     logger.debug(f"Colunas de features: {FEATURE_COLUMNS}")
@@ -252,10 +236,6 @@ def prepare_input_window(df: pd.DataFrame, scaler_features, seq_length: int) -> 
         error_msg = f"Erro ao preparar janela de entrada: {e}"
         logger.error(error_msg, exc_info=True)
         raise RuntimeError(error_msg) from e
-
-# =========================
-# Previsão para uma data futura
-# =========================
 
 def predict_single_date(
     ticker: str,
@@ -296,10 +276,6 @@ def predict_single_date(
         "predicted_price": float(round(pred_price, 2)),
         "model_version": model_config.get("version", "v1")
     }
-
-# =========================
-# Série de previsões (forecast recursivo)
-# =========================
 
 def predict_series(
     ticker: str,
@@ -358,11 +334,6 @@ def predict_series(
         "model_version": model_config.get("version", "v1")
     }
 
-
-# =========================
-# Função de previsão simplificada para API
-# =========================
-
 def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dict:
     """
     Função simplificada para previsão de preços usada pela API.
@@ -378,7 +349,6 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
     ticker = ticker.upper()
     logger.info(f"Iniciando previsão de preço para {ticker} - {days} dias")
     
-    # Carregar artefatos do modelo
     logger.debug(f"Carregando artefatos do modelo para {ticker}")
     try:
         artifacts = load_artifacts(ticker)
@@ -392,7 +362,6 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
         logger.error(error_msg, exc_info=True)
         raise
     
-    # Preparar dados
     logger.debug(f"Preparando dados para previsão")
     df = df_processed.copy()
     df.columns = df.columns.str.lower()
@@ -403,18 +372,15 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
         df["date"] = pd.to_datetime(df["date"])
         df = df.sort_values("date").reset_index(drop=True)
     
-    # Verificar se há dados suficientes
     logger.debug(f"Verificando quantidade de dados: {len(df)} registros disponíveis, {seq_length} necessários")
     if len(df) < seq_length:
         error_msg = f"Dados insuficientes para {ticker}. Mínimo necessário: {seq_length} registros. Disponível: {len(df)}"
         logger.error(error_msg)
         raise ValueError(error_msg)
     
-    # Obter último preço conhecido
     last_known_price = float(df["close"].iloc[-1])
     logger.info(f"Último preço conhecido de {ticker}: R$ {last_known_price:.2f}")
     
-    # Fazer previsões recursivas
     predictions = []
     current_df = df.copy()
     logger.info(f"Iniciando previsões recursivas para {days} dias")
@@ -423,7 +389,6 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
         logger.debug(f"Previsão do dia {step + 1}/{days}")
         
         try:
-            # Preparar janela de entrada
             logger.debug(f"Preparando janela de entrada para dia {step + 1}")
             features = current_df[FEATURE_COLUMNS].values
             scaled = scaler_features.transform(features)
@@ -431,7 +396,6 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
             window = np.expand_dims(window, axis=0)
             input_tensor = torch.tensor(window, dtype=torch.float32, device=DEVICE)
             
-            # Fazer previsão
             logger.debug(f"Executando modelo de previsão")
             with torch.no_grad():
                 pred_scaled = model(input_tensor).cpu().numpy()[0][0]
@@ -440,13 +404,11 @@ def predict_price(df_processed: pd.DataFrame, ticker: str, days: int = 1) -> dic
             predictions.append(float(pred_price))
             logger.debug(f"Previsão dia {step + 1}: R$ {pred_price:.2f}")
             
-            # Adicionar previsão ao dataframe para próxima iteração
-            if step < days - 1:  # Não precisa adicionar na última iteração
+            if step < days - 1:
                 logger.debug(f"Adicionando previsão ao dataset para próxima iteração")
                 new_row = current_df.iloc[-1].copy()
                 new_row["close"] = pred_price
                 
-                # Manter o volume (pode ser melhorado com previsão de volume também)
                 current_df = pd.concat(
                     [current_df, pd.DataFrame([new_row])],
                     ignore_index=True

@@ -151,7 +151,7 @@ def train_ticker(request: TrainRequest):
         )
         
         logger.info(f"Treinamento concluído para {request.ticker}")
-        # Invalidate and reload model cache so the API uses the newly trained model
+        
         try:
             tk = request.ticker.upper()
             if tk in model_executor._models_cache:

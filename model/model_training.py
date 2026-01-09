@@ -11,7 +11,6 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-# MLflow removed: disable tracking and proceed without mlflow
 MLFLOW_ENABLED = False
 
 sys.path.append(str(Path(__file__).parent.parent / "scrapper"))
@@ -21,19 +20,15 @@ from scrapper_pipeline import get_or_scrappe_ticker
 
 SEQ_LENGTH = 30
 TRAIN_SPLIT = 0.8
-# Reduce default epochs for faster runs; minibatch + early stopping used
 EPOCHS = 30
 LEARNING_RATE = 0.001
 
-# Training speedups
 BATCH_SIZE = 64
 PATIENCE = 5
 
-# Model defaults (increased capacity to reduce error)
 DEFAULT_HIDDEN_SIZE = 128
 DEFAULT_NUM_LAYERS = 3
 
-# Reproducibility
 import random
 SEED = 42
 np.random.seed(SEED)
@@ -42,14 +37,12 @@ torch.manual_seed(SEED)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(SEED)
 
-# Use GPU if available to speed up training
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_DIR = os.path.join(BASE_DIR, "export")
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
-# MLflow tracking removed; keep constants if needed in future
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
 MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "stock-price-prediction")
 
@@ -90,9 +83,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         end_date = datetime.now().strftime("%Y-%m-%d")
     
     ticker = ticker.upper()
-    
-    # mlflow tracking disabled
-    
+        
     try:
         print(f"\n{'='*50}")
         print(f"Iniciando treinamento para {ticker}")
@@ -114,9 +105,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         df = df[["close", "volume"]].dropna()
         
         print(f"Dados obtidos: {len(df)} registros de {df.index.min()} até {df.index.max()}")
-        
-        # mlflow tracking disabled
-        
+                
         
         X = df[["close", "volume"]].values
         y = df[["close"]].values
@@ -143,17 +132,12 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         print(f"Dados de treino: {len(X_train)} sequências")
         print(f"Dados de teste: {len(X_test)} sequências")
         
-        # mlflow tracking disabled
-        
-        
-        # Create dataloader for minibatch training (faster than full-batch)
         train_dataset = TensorDataset(
             torch.tensor(X_train, dtype=torch.float32),
             torch.tensor(y_train, dtype=torch.float32)
         )
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-        # Validation tensors (kept as full tensors for quick val checks)
         X_test_torch = torch.tensor(X_test, dtype=torch.float32)
         y_test_torch = torch.tensor(y_test, dtype=torch.float32)
         
@@ -195,7 +179,6 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
 
             avg_train_loss = epoch_loss / max(1, seen)
 
-            # Validation loss (quick check on full validation set)
             model.eval()
             with torch.no_grad():
                 X_val = X_test_torch.to(DEVICE)
@@ -203,7 +186,6 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
                 val_preds = model(X_val)
                 val_loss = criterion(val_preds, y_val).item()
 
-            # Early stopping
             if val_loss < best_val_loss - 1e-8:
                 best_val_loss = val_loss
                 patience_counter = 0
@@ -219,7 +201,6 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         
         
         print("\nExecutando backtest...")
-        # Ensure model on CPU for evaluation and saving
         model.to("cpu")
         model.eval()
         with torch.no_grad():
@@ -240,9 +221,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         print(f"Preço real último dia: R$ {reals[-1][0]:.2f}")
         print(f"Preço previsto último dia: R$ {preds[-1][0]:.2f}")
         print(f"Erro absoluto: R$ {abs(reals[-1][0] - preds[-1][0]):.2f}")
-        
-        # mlflow tracking disabled
-        
+                
         
         last_sequence = X_scaled[-SEQ_LENGTH:]
         last_sequence = torch.tensor(last_sequence, dtype=torch.float32).unsqueeze(0)
@@ -252,9 +231,7 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         
         next_price = close_scaler.inverse_transform([[next_scaled]])[0][0]
         print(f"\nPreço previsto próximo dia ({ticker}): R$ {next_price:.2f}")
-        
-        # mlflow tracking disabled
-        
+                
         
         MODEL_PATH = os.path.join(EXPORT_DIR, f"lstm_model_{ticker}.pth")
         SCALER_FEATURES_PATH = os.path.join(EXPORT_DIR, f"scaler_features_{ticker}.save")
@@ -286,11 +263,9 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
         joblib.dump(close_scaler, SCALER_CLOSE_PATH)
         
         print(f"\n✓ Modelo salvo em: {MODEL_PATH}")
-        print(f"✓ Scaler features salvo em: {SCALER_FEATURES_PATH}")
-        print(f"✓ Scaler close salvo em: {SCALER_CLOSE_PATH}")
-        
-        # mlflow tracking disabled
-        
+        print(f"Scaler features salvo em: {SCALER_FEATURES_PATH}")
+        print(f"Scaler close salvo em: {SCALER_CLOSE_PATH}")
+                
         print(f"\n{'='*50}")
         print("Treinamento concluído com sucesso!")
         print(f"{'='*50}\n")
@@ -306,13 +281,10 @@ def train_model(ticker: str, start_date: str = "2020-01-01", end_date: str = Non
             "model_path": MODEL_PATH,
             "trained_at": checkpoint["trained_at"]
         }
-        
-        # mlflow tracking disabled
-        
+                
         return result
         
     except Exception as e:
-        # mlflow tracking disabled
         raise e
 
 

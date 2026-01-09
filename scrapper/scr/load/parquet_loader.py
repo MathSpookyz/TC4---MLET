@@ -27,11 +27,6 @@ def _parse_s3_path(s3_path: str):
     bucket, key = s3_path.split("/", 1)
     return bucket, key
 
-
-# =========================
-# Salvar RAW
-# =========================
-
 def save_raw_parquet(df: pd.DataFrame, path: str):
     """
     Salva dados brutos em formato parquet.
@@ -59,11 +54,6 @@ def save_raw_parquet(df: pd.DataFrame, path: str):
         df.to_parquet(local_path, index=True)
         logger.info(f"Dados brutos salvos localmente: {local_path}")
 
-
-# =========================
-# Salvar Processado
-# =========================
-
 def save_processed_parquet(df: pd.DataFrame, ticker: str, base_path: str = "scrapper/data/processed/prices"):
     """
     Salva dados processados por ticker em formato parquet.
@@ -77,7 +67,6 @@ def save_processed_parquet(df: pd.DataFrame, ticker: str, base_path: str = "scra
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     if STORAGE_TYPE == "s3":
-        # Formato S3: s3://bucket/prefix/ticker=XXX/file.parquet
         if not base_path.startswith("s3://"):
             base_path = f"s3://{base_path}"
         
@@ -93,7 +82,6 @@ def save_processed_parquet(df: pd.DataFrame, ticker: str, base_path: str = "scra
         s3_client.put_object(Bucket=bucket, Key=s3_key, Body=buffer.getvalue())
         logger.info(f"Dados processados salvos no S3")
     else:
-        # Formato local: path/ticker=XXX/file.parquet
         ticker_path = Path(base_path) / f"ticker={ticker}"
         ticker_path.mkdir(parents=True, exist_ok=True)
         
@@ -102,11 +90,6 @@ def save_processed_parquet(df: pd.DataFrame, ticker: str, base_path: str = "scra
         logger.info(f"Salvando dados processados localmente: {file_path}")
         df.to_parquet(file_path, index=True)
         logger.info(f"Dados processados salvos localmente")
-
-
-# =========================
-# Carregar Ticker
-# =========================
 
 def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/prices") -> pd.DataFrame:
     """
@@ -120,7 +103,6 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
     Returns:
         DataFrame com dados do ticker ou None se não encontrado
     """
-    # Tentar carregar localmente primeiro
     ticker_path = Path(data_path) / f"ticker={ticker}"
     
     if ticker_path.exists():
@@ -128,12 +110,10 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
         
         if parquet_files:
             try:
-                # Carrega o arquivo mais recente
                 latest_file = max(parquet_files, key=lambda p: p.stat().st_mtime)
                 logger.info(f"Ticker {ticker} encontrado localmente. Carregando: {latest_file}")
                 df = pd.read_parquet(latest_file)
                 
-                # Garantir que a coluna 'ticker' existe
                 if 'ticker' not in df.columns:
                     df['ticker'] = ticker
                     logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker}")
@@ -143,16 +123,13 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
             except Exception as e:
                 logger.warning(f"Erro ao carregar dados locais do ticker {ticker}: {e}")
     
-    # Se STORAGE_TYPE for S3, tentar carregar do S3
     if STORAGE_TYPE == "s3":
         logger.info(f"Ticker {ticker} não encontrado localmente. Tentando carregar do S3...")
         
         try:
-            # Assumir que data_path pode ser um caminho S3
             if data_path.startswith("s3://"):
                 bucket, prefix = _parse_s3_path(data_path)
             else:
-                # Converter path local para S3 (assumir bucket padrão)
                 default_bucket = os.getenv("S3_BUCKET", "teste-s3-dados-tickers")
                 bucket = default_bucket
                 prefix = f"processed/prices"
@@ -171,14 +148,12 @@ def load_ticker_local(ticker: str, data_path: str = "scrapper/data/processed/pri
                 logger.info(f"Nenhum arquivo parquet encontrado no S3 para ticker {ticker}")
                 return None
             
-            # Carregar o primeiro arquivo encontrado
             s3_key = parquet_files[0]
             logger.info(f"Carregando ticker {ticker} do S3: s3://{bucket}/{s3_key}")
             
             obj = s3_client.get_object(Bucket=bucket, Key=s3_key)
             df = pd.read_parquet(io.BytesIO(obj['Body'].read()))
             
-            # Garantir que a coluna 'ticker' existe
             if 'ticker' not in df.columns:
                 df['ticker'] = ticker
                 logger.info(f"Coluna 'ticker' adicionada aos dados de {ticker} do S3")
