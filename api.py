@@ -97,44 +97,6 @@ def root():
 def health_check():
     return {"status": "healthy"}
 
-
-@app.get("/predict/{ticker}", response_model=PredictionResponse)
-def predict_ticker_get(ticker: str, days: int = 1, start_date: Optional[str] = None, end_date: Optional[str] = None):
-    try:
-        logger.info(f"Recebida requisição de previsão para ticker: {ticker}, dias: {days}")
-        
-        df_processed = get_or_scrappe_ticker(
-            ticker=ticker.upper(),
-            data_path="scapper/data/processed/prices",
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        if df_processed is None or df_processed.empty:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Não foi possível obter dados para o ticker {ticker}"
-            )
-        
-        result = predict_price(df_processed, ticker=ticker.upper(), days=days)
-        
-        logger.info(f"Previsão concluída para {ticker}: {days} dias")
-        
-        return PredictionResponse(
-            ticker=ticker.upper(),
-            predictions=[round(p, 2) for p in result['predictions']],
-            days=result['days'],
-            last_known_price=round(result['last_known_price'], 2)
-        )
-        
-    except ValueError as e:
-        logger.error(f"Erro de validação: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Erro ao processar previsão: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
-
-
 @app.post("/predict", response_model=PredictionResponse)
 def predict_ticker_post(request: PredictionRequest):
     try:
