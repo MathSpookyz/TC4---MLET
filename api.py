@@ -84,7 +84,6 @@ def root():
     return {
         "message": "Stock Price Prediction API",
         "endpoints": {
-            "predict": "/predict/{ticker}",
             "predict_post": "/predict",
             "predict_custom": "/predict-custom",
             "train": "/train",

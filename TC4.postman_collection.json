@@ -1,0 +1,356 @@
+{
+	"info": {
+		"_postman_id": "fe29200a-2370-4d40-b3d7-82ea111ee365",
+		"name": "TC4",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "33856184",
+		"_collection_link": "https://team22-0153.postman.co/workspace/60e497fa-933d-4fa1-af92-58ffab863f24/collection/33856184-fe29200a-2370-4d40-b3d7-82ea111ee365?action=share&source=collection_link&creator=33856184"
+	},
+	"item": [
+		{
+			"name": "http://localhost:8000/train",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"PETR4.SA\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/train",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"train"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8000/train",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"VALE3.SA\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/train",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"train"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8000/train",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"ITUB4.SA\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/train",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"train"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8000/predict",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"PETR4.SA\", \"days\": 7}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/predict",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8000/predict",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"VALE3.SA\", \"days\": 30}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/predict",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8000/predict",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"ticker\": \"ITUB4.SA\", \"days\": 14}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/predict",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "predict-custom",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"ticker_name\": \"EXEMPLO_SIMPLES\",\r\n  \"days\": 5,\r\n  \"historical_data\": [\r\n    {\"date\": \"2024-01-01\", \"close\": 100.00, \"volume\": 1000000},\r\n    {\"date\": \"2024-01-02\", \"close\": 101.50, \"volume\": 1050000},\r\n    {\"date\": \"2024-01-03\", \"close\": 102.30, \"volume\": 1100000},\r\n    {\"date\": \"2024-01-04\", \"close\": 101.80, \"volume\": 1080000},\r\n    {\"date\": \"2024-01-05\", \"close\": 103.20, \"volume\": 1120000},\r\n    {\"date\": \"2024-01-08\", \"close\": 104.50, \"volume\": 1150000},\r\n    {\"date\": \"2024-01-09\", \"close\": 104.00, \"volume\": 1130000},\r\n    {\"date\": \"2024-01-10\", \"close\": 105.30, \"volume\": 1180000},\r\n    {\"date\": \"2024-01-11\", \"close\": 106.20, \"volume\": 1200000},\r\n    {\"date\": \"2024-01-12\", \"close\": 105.80, \"volume\": 1190000},\r\n    {\"date\": \"2024-01-15\", \"close\": 107.50, \"volume\": 1220000},\r\n    {\"date\": \"2024-01-16\", \"close\": 108.10, \"volume\": 1250000},\r\n    {\"date\": \"2024-01-17\", \"close\": 108.90, \"volume\": 1260000},\r\n    {\"date\": \"2024-01-18\", \"close\": 108.30, \"volume\": 1240000},\r\n    {\"date\": \"2024-01-19\", \"close\": 109.80, \"volume\": 1280000},\r\n    {\"date\": \"2024-01-22\", \"close\": 110.50, \"volume\": 1300000},\r\n    {\"date\": \"2024-01-23\", \"close\": 110.20, \"volume\": 1290000},\r\n    {\"date\": \"2024-01-24\", \"close\": 111.60, \"volume\": 1320000},\r\n    {\"date\": \"2024-01-25\", \"close\": 112.30, \"volume\": 1350000},\r\n    {\"date\": \"2024-01-26\", \"close\": 111.90, \"volume\": 1340000},\r\n    {\"date\": \"2024-01-29\", \"close\": 113.20, \"volume\": 1370000},\r\n    {\"date\": \"2024-01-30\", \"close\": 114.00, \"volume\": 1400000},\r\n    {\"date\": \"2024-01-31\", \"close\": 113.60, \"volume\": 1390000},\r\n    {\"date\": \"2024-02-01\", \"close\": 114.80, \"volume\": 1420000},\r\n    {\"date\": \"2024-02-02\", \"close\": 115.50, \"volume\": 1450000},\r\n    {\"date\": \"2024-02-05\", \"close\": 115.20, \"volume\": 1440000},\r\n    {\"date\": \"2024-02-06\", \"close\": 116.30, \"volume\": 1470000},\r\n    {\"date\": \"2024-02-07\", \"close\": 117.00, \"volume\": 1490000},\r\n    {\"date\": \"2024-02-08\", \"close\": 116.70, \"volume\": 1480000},\r\n    {\"date\": \"2024-02-09\", \"close\": 117.90, \"volume\": 1510000},\r\n    {\"date\": \"2024-02-12\", \"close\": 118.50, \"volume\": 1530000},\r\n    {\"date\": \"2024-02-13\", \"close\": 118.20, \"volume\": 1520000},\r\n    {\"date\": \"2024-02-14\", \"close\": 119.40, \"volume\": 1550000},\r\n    {\"date\": \"2024-02-15\", \"close\": 120.10, \"volume\": 1580000},\r\n    {\"date\": \"2024-02-16\", \"close\": 119.80, \"volume\": 1570000},\r\n    {\"date\": \"2024-02-19\", \"close\": 121.00, \"volume\": 1600000},\r\n    {\"date\": \"2024-02-20\", \"close\": 121.70, \"volume\": 1630000},\r\n    {\"date\": \"2024-02-21\", \"close\": 121.40, \"volume\": 1620000},\r\n    {\"date\": \"2024-02-22\", \"close\": 122.60, \"volume\": 1650000},\r\n    {\"date\": \"2024-02-23\", \"close\": 123.20, \"volume\": 1680000},\r\n    {\"date\": \"2024-02-26\", \"close\": 122.90, \"volume\": 1670000},\r\n    {\"date\": \"2024-02-27\", \"close\": 124.10, \"volume\": 1700000},\r\n    {\"date\": \"2024-02-28\", \"close\": 124.80, \"volume\": 1730000},\r\n    {\"date\": \"2024-02-29\", \"close\": 124.50, \"volume\": 1720000},\r\n    {\"date\": \"2024-03-01\", \"close\": 125.70, \"volume\": 1750000}\r\n  ]\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/predict-custom",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"predict-custom"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "https://tc4-mlet-main.onrender.com/predict Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"ticker\": \"PETR4.SA\",\n  \"start_date\":\"2025-01-01\",\n  \"end_date\":\"2026-01-01\",\n  \"days\": 1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tc4-mlet-main.onrender.com/predict",
+					"protocol": "https",
+					"host": [
+						"tc4-mlet-main",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "https://tc4-mlet-main.onrender.com/predict Copy 2",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"ticker\": \"PETR4.SA\",\n  \"start_date\":\"2025-01-01\",\n  \"end_date\":\"2026-01-01\",\n  \"days\": 1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tc4-mlet-main.onrender.com/predict",
+					"protocol": "https",
+					"host": [
+						"tc4-mlet-main",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "https://tc4-mlet-main.onrender.com/predict",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"ticker\": \"PETR4.SA\",\n  \"start_date\":\"2025-01-01\",\n  \"end_date\":\"2026-01-01\",\n  \"days\": 1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://tc4-mlet-main.onrender.com/predict",
+					"protocol": "https",
+					"host": [
+						"tc4-mlet-main",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"predict"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
